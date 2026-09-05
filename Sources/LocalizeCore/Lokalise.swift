@@ -35,7 +35,16 @@ public actor LokaliseClient {
     private let token: String
     private let session: URLSession
     private let base: URL
-    public init(token: String, session: URLSession = .shared, base: URL = URL(string: "https://api.lokalise.com/api2")!) { self.token = token; self.session = session; self.base = base }
+    public init(token: String, session: URLSession = URLSession(configuration: LokaliseClient.privateConfiguration()), base: URL = URL(string: "https://api.lokalise.com/api2")!) { self.token = token; self.session = session; self.base = base }
+    public nonisolated static func privateConfiguration() -> URLSessionConfiguration {
+        let config = URLSessionConfiguration.ephemeral
+        config.urlCache = nil
+        config.httpCookieStorage = nil
+        config.httpShouldSetCookies = false
+        config.urlCredentialStorage = nil
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        return config
+    }
     public func projects() async throws -> [RemoteProject] { try await paged(path: "projects", collection: "projects") }
     public func languages(project: String) async throws -> [RemoteLanguage] { try await paged(path: "projects/\(try projectPath(project))/languages", collection: "languages", cursor: false) }
     public func keys(project: String, progress: @escaping @Sendable (Int) -> Void = { _ in }) async throws -> [RemoteKey] { try await paged(path: "projects/\(try projectPath(project))/keys", collection: "keys", extra: [URLQueryItem(name: "include_translations", value: "1"), URLQueryItem(name: "disable_references", value: "1")], progress: progress) }
@@ -67,6 +76,7 @@ public actor LokaliseClient {
         return values
     }
     private func request(path: String, query: [URLQueryItem]) async throws -> (Data, HTTPURLResponse) {
+        guard base.scheme == "https", base.host != nil, base.user == nil, base.password == nil else { throw StudioError.message("Lokalise requests require an HTTPS endpoint without URL credentials.") }
         guard !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw StudioError.message("Add your Lokalise API token in Settings.") }
         var components = URLComponents(url: base.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
         components.queryItems = query
@@ -79,7 +89,8 @@ public actor LokaliseClient {
                 guard let response = raw as? HTTPURLResponse else { throw StudioError.message("Invalid network response.") }
                 if (200..<300).contains(response.statusCode) { return (data, response) }
                 if [429, 500, 502, 503, 504].contains(response.statusCode), attempt < 3 {
-                    let retry = response.value(forHTTPHeaderField: "Retry-After").flatMap(TimeInterval.init) ?? pow(2, Double(attempt))
+                    let proposed = response.value(forHTTPHeaderField: "Retry-After").flatMap(TimeInterval.init) ?? pow(2, Double(attempt))
+                    let retry = proposed.isFinite ? proposed : 1
                     try await Task.sleep(nanoseconds: UInt64(min(max(retry, 1), 60) * 1_000_000_000 + Double.random(in: 0...250_000_000))); continue
                 }
                 let message: String

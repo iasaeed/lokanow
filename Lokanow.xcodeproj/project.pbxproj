@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		0B2CFD80EAAA004FC44FA9E2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1B85042B96D9AFA9031AF13D /* Assets.xcassets */; };
 		24A8B8B4B35CD7A01438A7BE /* WorkflowViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CB1E67EF6F854D44D0180F8 /* WorkflowViews.swift */; };
+		2BE5F86AA19B9EF8F0D53557 /* TableSelectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3538FD9B5EA76DE8297E620 /* TableSelectionHeader.swift */; };
 		31B72EBF9EC92AC1672C25BB /* StudioModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 563BF2C890BC5695EA1CE2BF /* StudioModel.swift */; };
 		646CE0378855B6F717F52D48 /* StudioView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26E3C091F50FAE0846570DD5 /* StudioView.swift */; };
 		7609A247D0551D6EEE4D2FC5 /* LokanowApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DEB6DC03366A03C492FAB02 /* LokanowApp.swift */; };
@@ -38,6 +39,7 @@
 		6DEB6DC03366A03C492FAB02 /* LokanowApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LokanowApp.swift; sourceTree = "<group>"; };
 		78076C517BC13C093D9466A5 /* TranslationCacheView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationCacheView.swift; sourceTree = "<group>"; };
 		978C71958376BEA3218FB35F /* LokanowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LokanowUITests.swift; sourceTree = "<group>"; };
+		A3538FD9B5EA76DE8297E620 /* TableSelectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableSelectionHeader.swift; sourceTree = "<group>"; };
 		B7A63C20EAA13D7220B109EF /* Lokanow.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Lokanow.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		DADEDC8F957E6C94BEE0DCCA /* lokanow */ = {isa = PBXFileReference; lastKnownFileType = folder; name = lokanow; path = .; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
@@ -95,6 +97,7 @@
 				35154E3AC3C0D6122E751CFC /* Security.swift */,
 				563BF2C890BC5695EA1CE2BF /* StudioModel.swift */,
 				26E3C091F50FAE0846570DD5 /* StudioView.swift */,
+				A3538FD9B5EA76DE8297E620 /* TableSelectionHeader.swift */,
 				78076C517BC13C093D9466A5 /* TranslationCacheView.swift */,
 				3CB1E67EF6F854D44D0180F8 /* WorkflowViews.swift */,
 			);
@@ -223,6 +226,7 @@
 				D0511FF05274B1DCEE8906B0 /* Security.swift in Sources */,
 				31B72EBF9EC92AC1672C25BB /* StudioModel.swift in Sources */,
 				646CE0378855B6F717F52D48 /* StudioView.swift in Sources */,
+				2BE5F86AA19B9EF8F0D53557 /* TableSelectionHeader.swift in Sources */,
 				C69AD9032323699AF1843042 /* TranslationCacheView.swift in Sources */,
 				24A8B8B4B35CD7A01438A7BE /* WorkflowViews.swift in Sources */,
 			);
@@ -295,7 +299,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.0.2;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -394,7 +398,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.0.2;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

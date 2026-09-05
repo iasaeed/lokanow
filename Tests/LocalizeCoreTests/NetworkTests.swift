@@ -63,6 +63,15 @@ final class NetworkTests: XCTestCase {
         StubProtocol.handler = { _ in requests += 1; return requests == 1 ? (429, ["Retry-After": "1"], Data()) : (200, [:], Data("{\"projects\":[]}".utf8)) }
         _ = try await client.projects(); XCTAssertEqual(requests, 2)
     }
+    func testNonFiniteRetryHeaderDoesNotCrash() async throws {
+        var requests = 0
+        StubProtocol.handler = { _ in
+            requests += 1
+            return requests == 1 ? (429, ["Retry-After": "NaN"], Data()) : (200, [:], Data("{\"projects\":[]}".utf8))
+        }
+        _ = try await client.projects()
+        XCTAssertEqual(requests, 2)
+    }
     func testLanguagesOffsetPagination() async throws {
         var requests = 0
         StubProtocol.handler = { request in

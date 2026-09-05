@@ -141,33 +141,50 @@ struct Metric: View {
         }.font(.system(size: 11)).frame(maxWidth: .infinity, alignment: .leading)
     }
 }
+private struct ModuleTableRow: Identifiable {
+    let module: Module
+    let prefix: String
+    let localization: String
+    var id: String { module.id }
+    var name: String { module.name }
+    var kind: String { module.kind }
+    var fileCount: Int { module.sources.count }
+}
 struct ModulesView: View {
     @EnvironmentObject var model: StudioModel
     @State var query = ""
     @State var configuration: Module?
     @State var showRemoved = false
     @State private var showWarnings = false
+    @State private var sortOrder = [KeyPathComparator(\ModuleTableRow.name)]
+    private var rows: [ModuleTableRow] {
+        filtered.map { ModuleTableRow(module: $0, prefix: model.saved.options[$0.id]?.prefix ?? "", localization: model.saved.options[$0.id]?.resourcePath ?? "") }.sorted(using: sortOrder)
+    }
+    private var selectableIDs: Set<String> { Set(filtered.filter { !(model.saved.removedModules ?? []).contains($0.id) }.map(\.id)) }
     var filtered: [Module] { model.modules.filter { (showRemoved || !(model.saved.removedModules ?? []).contains($0.id)) && (query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) || $0.root.path.localizedCaseInsensitiveContains(query)) } }
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             PageHeading(eyebrow: "", title: "Targets", subtitle: "Select targets and configure their localization resources.")
             HStack { TextField("Filter targets", text: $query).textFieldStyle(.roundedBorder).frame(maxWidth: 320); Spacer(); Toggle("Show Removed", isOn: $showRemoved).toggleStyle(.checkbox); Button("Select All") { model.saved.selectedModules.formUnion(filtered.filter { !(model.saved.removedModules ?? []).contains($0.id) }.map(\.id)); model.persist() }; Button("Deselect All") { model.saved.selectedModules = []; model.persist() } }
-            Table(filtered) {
-                TableColumn("") { module in
+            Table(rows, sortOrder: $sortOrder) {
+                TableColumn("") { row in
+                    let module = row.module
                     Toggle("Select \(module.name)", isOn: Binding(get: { model.saved.selectedModules.contains(module.id) }, set: { if $0 { model.saved.selectedModules.insert(module.id) } else { model.saved.selectedModules.remove(module.id) }; model.persist() })).labelsHidden().toggleStyle(.checkbox).disabled((model.saved.removedModules ?? []).contains(module.id))
                 }.width(24)
-                TableColumn("Target") { module in
+                TableColumn("Target", value: \.name) { row in
+                    let module = row.module
                     Label(module.name, systemImage: module.kind == "Application" ? "app" : "shippingbox").lineLimit(1).truncationMode(.middle).help(module.name + "\n" + module.root.path)
                 }.width(min: 140, ideal: 200)
                 TableColumn("Type", value: \.kind).width(min: 90, ideal: 110)
-                TableColumn("Prefix") { module in Text(model.saved.options[module.id]?.prefix ?? "").font(.system(size: 11, design: .monospaced)) }.width(60)
-                TableColumn("Swift Files") { Text("\($0.sources.count)").monospacedDigit() }.width(65)
-                TableColumn("Localization") { module in
-                    let path = model.saved.options[module.id]?.resourcePath ?? ""
+                TableColumn("Prefix", value: \.prefix) { row in Text(row.prefix).font(.system(size: 11, design: .monospaced)) }.width(60)
+                TableColumn("Swift Files", value: \.fileCount) { Text("\($0.fileCount)").monospacedDigit() }.width(65)
+                TableColumn("Localization", value: \.localization) { row in
+                    let path = row.localization
                     if path.isEmpty { Label("Not configured", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange) }
                     else { Label(URL(fileURLWithPath: path).lastPathComponent, systemImage: "doc.text").help(path) }
                 }.width(min: 160, ideal: 210)
-                TableColumn("Actions") { module in
+                TableColumn("Actions") { row in
+                    let module = row.module
                     HStack {
                         if (model.saved.removedModules ?? []).contains(module.id) {
                             Button("Restore") { model.restoreModule(module.id) }
@@ -177,7 +194,15 @@ struct ModulesView: View {
                         }
                     }
                 }.width(120)
-            }.frame(minHeight: 240, maxHeight: .infinity)
+            }.background(TableSelectionHeader(
+                selectedCount: selectableIDs.intersection(model.saved.selectedModules).count,
+                totalCount: selectableIDs.count, enabled: !model.busy,
+                label: "Select all filtered modules") { select in
+                    if select { model.saved.selectedModules.formUnion(selectableIDs) }
+                    else { model.saved.selectedModules.subtract(selectableIDs) }
+                    model.persist()
+                })
+                .frame(minHeight: 240, maxHeight: .infinity)
                 .contextMenu { Button("Refresh Targets") { model.discover() } }
             if filtered.isEmpty { Text(query.isEmpty ? (model.modules.isEmpty ? "No targets discovered in this project." : "All modules are removed. Enable Show Removed to restore them.") : "No matching targets.").foregroundStyle(.secondary) }
             let warningModules = filtered.filter { !$0.warnings.isEmpty }
@@ -300,6 +325,8 @@ struct StringsView: View {
     @State var query = ""
     @State var status = "All actionable"
     @State var selection: String?
+    @State private var sortOrder = [KeyPathComparator(\Finding.english)]
+    private var selectableIDs: Set<String> { Set(filtered.filter { $0.status == .ready }.map(\.id)) }
     var filtered: [Finding] { model.findings.filter { finding in
         (query.isEmpty || finding.english.localizedCaseInsensitiveContains(query) || finding.key.localizedCaseInsensitiveContains(query) || finding.moduleName.localizedCaseInsensitiveContains(query)) && (status == "Everything" || (status == "All actionable" ? finding.status != .excluded && finding.status != .localized : finding.status.rawValue == status))
     } }
@@ -312,16 +339,32 @@ struct StringsView: View {
                 HStack(spacing: 14) { Metric(title: "Selected conversions", value: "\(model.readyCount)", icon: "checkmark.circle"); Metric(title: "Need review", value: "\(model.unresolvedCount)", icon: "eye"); Metric(title: "Already localized", value: "\(model.findings.filter { $0.status == .localized }.count)", icon: "globe") }
                 if let warnings = model.analysis?.warnings, !warnings.isEmpty { DisclosureGroup("\(warnings.count) analysis warnings") { ScrollView { VStack(alignment: .leading) { ForEach(warnings, id: \.self) { Text($0).font(.caption).foregroundStyle(.orange) } } }.frame(maxHeight: 90) } }
                 HStack { TextField("Search English text, keys, or modules", text: $query).textFieldStyle(.roundedBorder); Picker("Show", selection: $status) { Text("All actionable").tag("All actionable"); Text("Everything").tag("Everything"); ForEach(FindingStatus.allCases, id: \.self) { Text($0.rawValue).tag($0.rawValue) } }.frame(width: 230) }
-                Table(filtered, selection: $selection) {
+                Table(filtered.sorted(using: sortOrder), selection: $selection, sortOrder: $sortOrder) {
                     TableColumn("") { finding in Toggle("Register \(finding.english)", isOn: Binding(get: { model.findings.first { $0.id == finding.id }?.selected ?? false }, set: { value in if let i = model.findings.firstIndex(where: { $0.id == finding.id }) { model.findings[i].selected = value } })).labelsHidden().disabled(finding.status != .ready) }.width(28)
-                    TableColumn("English value") { Text($0.english).lineLimit(2) }.width(min: 160, ideal: 280)
-                    TableColumn("Key") { Text($0.key).font(.system(.caption, design: .monospaced)) }.width(min: 160, ideal: 260)
+                    TableColumn("English value", value: \.english) { Text($0.english).lineLimit(2) }.width(min: 160, ideal: 280)
+                    TableColumn("Key", value: \.key) { Text($0.key).font(.system(.caption, design: .monospaced)) }.width(min: 160, ideal: 260)
                     TableColumn("Module", value: \.moduleName).width(min: 80, ideal: 130)
-                    TableColumn("Status") { StatusBadge(status: $0.status.rawValue) }.width(150)
-                }.frame(minHeight: 160)
+                    TableColumn("Status", value: \.status.rawValue) { StatusBadge(status: $0.status.rawValue) }.width(150)
+                }.contextMenu(forSelectionType: String.self) { ids in
+                    if let id = ids.first, let finding = model.findings.first(where: { $0.id == id }) {
+                        Button("Open in Xcode at Line \(finding.line)") { model.openInXcode(finding) }
+                    }
+                } primaryAction: { ids in
+                    if let id = ids.first, let finding = model.findings.first(where: { $0.id == id }) {
+                        model.openInXcode(finding)
+                    }
+                }
+                .background(TableSelectionHeader(
+                    selectedCount: model.findings.filter { selectableIDs.contains($0.id) && $0.selected }.count,
+                    totalCount: selectableIDs.count, enabled: !model.busy,
+                    label: "Select all filtered safe conversions") { select in
+                        let ids = selectableIDs
+                        for index in model.findings.indices where ids.contains(model.findings[index].id) { model.findings[index].selected = select }
+                    })
+                    .frame(minHeight: 160)
                 if let current {
                     VStack(alignment: .leading, spacing: 7) {
-                        HStack { Text("\(current.file.lastPathComponent):\(current.line) · \(current.context)").font(.subheadline.weight(.medium)); Spacer(); Button("Open in Xcode") { NSWorkspace.shared.open(current.file) }; Button("Exclude") { model.exclude(current.id) } }
+                        HStack { Text("\(current.file.lastPathComponent):\(current.line) · \(current.context)").font(.subheadline.weight(.medium)); Spacer(); Button("Open in Xcode") { model.openInXcode(current) }; Button("Exclude") { model.exclude(current.id) } }
                         Text(current.reason).font(.caption).foregroundStyle(.secondary)
                         if let replacement = current.replacement { Text(replacement).font(.system(.caption, design: .monospaced)).textSelection(.enabled).lineLimit(4) }
                     }.padding(14).frame(maxWidth: .infinity, alignment: .leading).background(Color(nsColor: .controlBackgroundColor))

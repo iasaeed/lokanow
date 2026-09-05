@@ -205,6 +205,26 @@ import LocalizeCore
             self.persist()
         }
     }
+    func openInXcode(_ finding: Finding) {
+        let file = finding.file.standardizedFileURL
+        guard file.isFileURL, FileManager.default.isReadableFile(atPath: file.path) else {
+            error = "The source file is no longer readable. Reopen the project and analyze again."
+            return
+        }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/xed")
+        process.arguments = ["--line", String(max(1, finding.line)), file.path]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        process.terminationHandler = { [weak self] task in
+            guard task.terminationStatus != 0 else { return }
+            Task { @MainActor in
+                self?.error = "Xcode could not open the source location. Ensure Xcode is installed and selected as the active developer tools."
+            }
+        }
+        do { try process.run() }
+        catch { self.error = "Could not launch Xcode navigation: " + error.localizedDescription }
+    }
     func analyze() {
         guard !selected.isEmpty else { error = "Select one or more modules first."; return }
         persist(); let selected = selected, all = modules, options = saved.options, exclusions = saved.excludedFindings

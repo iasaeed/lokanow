@@ -33,7 +33,7 @@ final class RegistrationTests: XCTestCase {
         let plan = ChangePlan(title: "Interrupted", root: root, changes: [FileChange(url: file, before: before, after: after, reason: "test")], rows: [])
         let dir = root.appendingPathComponent(".lokanow/operations")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        try JSONEncoder().encode(Transactions.Journal(plan: plan, state: "applying")).write(to: dir.appendingPathComponent(plan.id.uuidString + ".json"))
+        try Transactions.save(Transactions.Journal(plan: plan, state: "applying"), to: dir.appendingPathComponent(plan.id.uuidString + ".json"))
         XCTAssertNotNil(try Transactions.pending(root: root))
         try Transactions.recover(root: root)
         XCTAssertEqual(try Data(contentsOf: file), before)

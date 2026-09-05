@@ -24,7 +24,8 @@ public actor TranslationCache {
         let snapshot = CachedKeys(date: Date(), keys: keys)
         let data = try JSONEncoder().encode(snapshot)
         try Task.checkCancellation()
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
         let path = url(token: token, project: project)
         // Atomic replacement prevents half-downloaded snapshots being used by an import.
         try data.write(to: path, options: [.atomic, .completeFileProtectionUnlessOpen])

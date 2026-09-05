@@ -87,6 +87,7 @@ struct ReportsView: View {
     @EnvironmentObject var model: StudioModel
     @State var reportID: UUID?
     @State var selection: UUID?
+    @State private var sortOrder = [KeyPathComparator(\ReportRow.english)]
     @State var unresolvedOnly = false
     @State var query = ""
     var report: OperationReport? { model.reports.first { $0.id == reportID } ?? model.reports.first }
@@ -102,11 +103,11 @@ struct ReportsView: View {
                     Spacer(); Button("Undo last file operation") { model.undo() }.disabled(model.busy)
                 }
                 HStack { TextField("Search report", text: $query).textFieldStyle(.roundedBorder); Toggle("Unresolved only", isOn: $unresolvedOnly).toggleStyle(.checkbox) }
-                Table(rows, selection: $selection) {
+                Table(rows.sorted(using: sortOrder), selection: $selection, sortOrder: $sortOrder) {
                     TableColumn("English", value: \.english).width(min: 150, ideal: 260)
-                    TableColumn("Key") { Text($0.key).font(.system(.caption, design: .monospaced)) }.width(min: 150, ideal: 230)
+                    TableColumn("Key", value: \.key) { Text($0.key).font(.system(.caption, design: .monospaced)) }.width(min: 150, ideal: 230)
                     TableColumn("Language", value: \.language).width(70)
-                    TableColumn("Status") { StatusBadge(status: $0.status) }.width(100)
+                    TableColumn("Status", value: \.status) { StatusBadge(status: $0.status) }.width(100)
                     TableColumn("Reason", value: \.reason).width(min: 180, ideal: 260)
                 }
                 if let current {

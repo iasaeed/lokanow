@@ -35,7 +35,7 @@ public enum Analyzer {
                     if knownKeys.count == 1 { key = knownKeys[0] }
                     else if knownKeys.count > 1 && status == .ready { status = .review; reason = "Multiple local keys share this English value. Confirm the intended context before reusing a key." }
                     var replacement: String?
-                    if candidate.localized {
+                    if candidate.localized && status != .excluded {
                         if let value = existing[english], english != value {
                             status = .localized; key = english; reason = "The key exists in the selected localization table."
                         } else if existing[english] == nil && english.range(of: "^[a-z0-9_]+(?:[._][a-z0-9_]+)+$", options: .regularExpression) != nil {
@@ -87,6 +87,20 @@ private final class LiteralVisitor: SyntaxVisitor {
     let file: URL, source: String, wrappers: Set<String>
     let replacementTemplate: String?
     init(file: URL, source: String, wrappers: Set<String>, replacementTemplate: String?) { self.file = file; self.source = source; self.wrappers = wrappers; self.replacementTemplate = replacementTemplate; super.init(viewMode: .sourceAccurate) }
+    private func isCodingKeyRawValue(_ node: StringLiteralExprSyntax) -> Bool {
+        guard node.parent?.is(InitializerClauseSyntax.self) == true,
+              node.parent?.parent?.is(EnumCaseElementSyntax.self) == true else { return false }
+        var ancestor = node.parent
+        while let current = ancestor {
+            if let declaration = current.as(EnumDeclSyntax.self) {
+                return declaration.name.text == "CodingKeys" || declaration.inheritanceClause?.inheritedTypes.contains {
+                    ["CodingKey", "Swift.CodingKey"].contains($0.type.trimmedDescription)
+                } == true
+            }
+            ancestor = current.parent
+        }
+        return false
+    }
     override func visit(_ node: StringLiteralExprSyntax) -> SyntaxVisitorContinueKind {
         let offset = node.positionAfterSkippingLeadingTrivia.utf8Offset
         let literal = node.trimmedDescription
@@ -101,8 +115,13 @@ private final class LiteralVisitor: SyntaxVisitor {
             let label = argument.label?.text ?? ""
             let first = call.arguments.first?.id == argument.id
             context = name + (label.isEmpty ? "(…)" : "(\(label): …)")
-            if ["Image", "Color", "UIImage", "NSImage", "URL", "print", "debugPrint", "assert", "assertionFailure", "precondition", "fatalError", "accessibilityIdentifier"].contains(simple) || ["systemImage", "systemName", "image", "named", "identifier", "format", "comment", "tableName", "table", "ofType", "forResource"].contains(label) || name.contains("logger.") || name.contains("analytics.") || label == "verbatim" {
+            if ["Image", "Color", "UIImage", "NSImage", "URL", "print", "debugPrint", "assert", "assertionFailure", "precondition", "fatalError", "accessibilityIdentifier", "id"].contains(simple) || ["systemImage", "systemName", "image", "named", "identifier", "id", "hex", "hexString", "format", "comment", "tableName", "table", "ofType", "forResource"].contains(label) || name.contains("logger.") || name.contains("analytics.") || label == "verbatim" {
                 status = .excluded; reason = "Asset, identifier, diagnostic, or intentionally verbatim string."
+            } else if (simple == "replacingOccurrences" && ["of", "with"].contains(label)) ||
+                        (simple == "replacingCharacters" && label == "with") ||
+                        (simple == "components" && label == "separatedBy") ||
+                        (simple == "split" && label == "separator") {
+                status = .excluded; reason = "String-processing argument, not display text."
             } else if simple == "NSLocalizedString" && first {
                 localized = true; status = .ready; reason = "Existing lookup can migrate to a semantic key."
                 let tableArg = call.arguments.first { $0.label?.text == "tableName" }
@@ -134,6 +153,28 @@ private final class LiteralVisitor: SyntaxVisitor {
                 if [".text", ".title", ".placeholder", ".accessibilityLabel", ".accessibilityHint"].contains(where: lhs.hasSuffix) { status = .ready; reason = "Text property assignment." }
             } else { reason = "Concatenated or computed string; preserve expression semantics." }
         }
+        if isCodingKeyRawValue(node) {
+            status = .excluded; reason = "Serialization CodingKey raw value."
+        }
+        if let binding = node.parent?.as(InitializerClauseSyntax.self)?.parent?.as(PatternBindingSyntax.self),
+           ["id", "identifier"].contains(binding.pattern.trimmedDescription) {
+            status = .excluded; reason = "Identifier storage, not display text."
+        }
+        if ["id", "identifier"].contains(context) || context.hasSuffix(".id") || context.hasSuffix(".identifier") {
+            status = .excluded; reason = "Identifier assignment, not display text."
+        }
+        if !dynamic {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty && trimmed.unicodeScalars.allSatisfy({ !CharacterSet.letters.contains($0) && !CharacterSet.decimalDigits.contains($0) }) {
+                status = .excluded; reason = "Standalone punctuation or symbol, not translatable text."
+            }
+            if trimmed.range(of: #"^(?:\{[A-Za-z_][A-Za-z0-9_]*\}|\{[0-9]+\}|\\[nrt]|\s)+$"#, options: .regularExpression) != nil {
+                status = .excluded; reason = "Placeholder or escaped whitespace without display text."
+            }
+            if trimmed.range(of: #"^(?:#|0[xX])(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"#, options: .regularExpression) != nil {
+                status = .excluded; reason = "Hexadecimal color value."
+            }
+        }
         // Recognize this module's configured wrapper on subsequent analysis.
         // Existing lookup expressions retain their wrapper; only the key literal changes.
         if !dynamic, status != .excluded, let template = replacementTemplate,
@@ -149,9 +190,20 @@ private final class LiteralVisitor: SyntaxVisitor {
                 ancestor = expression.parent
             }
         }
-        if dynamic && status != .excluded { status = .dynamic; reason = "Swift interpolation requires a typed localization and placeholder review." }
+        if dynamic && status != .excluded {
+            let staticText = node.segments.compactMap { $0.as(StringSegmentSyntax.self)?.content.text }.joined()
+                .replacingOccurrences(of: #"\\[nrt]"#, with: "", options: .regularExpression)
+            if staticText.unicodeScalars.allSatisfy({ !CharacterSet.letters.contains($0) && !CharacterSet.decimalDigits.contains($0) }) {
+                status = .excluded; reason = "Interpolation contains only variables and separators, without display text."
+            } else {
+                status = .dynamic; reason = "Swift interpolation requires a typed localization and placeholder review."
+            }
+        }
         if value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { status = .excluded; reason = "Empty or whitespace-only text." }
         if value.hasPrefix("https://") || value.hasPrefix("http://") { status = .excluded; reason = "URL literal." }
+        if status == .ready, value.range(of: #"\{(?:[A-Za-z_][A-Za-z0-9_]*|[0-9]+)\}"#, options: .regularExpression) != nil {
+            status = .review; reason = "Text contains template placeholders that require manual review."
+        }
         if value.contains("%") && status == .ready && !FormatValidation.placeholders(value).isEmpty { status = .review; reason = "Format string requires a placeholder-aware manual conversion." }
         if status == .ready && (value.contains("**") || value.contains("](") || value.contains("`")) { status = .review; reason = "Markdown-sensitive text needs a manual migration that preserves attributed rendering." }
         candidates.append(LiteralCandidate(value: value, literal: literal, offset: offset, length: node.endPositionBeforeTrailingTrivia.utf8Offset - offset, line: line, status: status, reason: reason, context: context, localized: localized, table: table, bundle: bundle, unsafeLookup: unsafe))
