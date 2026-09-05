@@ -1,0 +1,34 @@
+name: LocalizationShowcase
+options:
+  deploymentTarget:
+    iOS: '16.0'
+settings:
+  base:
+    CODE_SIGNING_ALLOWED: NO
+    GENERATE_INFOPLIST_FILE: YES
+    SWIFT_VERSION: '5.0'
+targets:
+  DemoApp:
+    type: application
+    platform: iOS
+    sources: [DemoApp]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lokanow.fixture.demo
+    dependencies:
+      - target: AccountCenter
+      - target: LegacyProfile
+  AccountCenter:
+    type: framework
+    platform: iOS
+    sources: [AccountCenter]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lokanow.fixture.accounts
+  LegacyProfile:
+    type: framework
+    platform: iOS
+    sources: [LegacyProfile]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lokanow.fixture.legacy

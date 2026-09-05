@@ -1,0 +1,492 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0B2CFD80EAAA004FC44FA9E2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1B85042B96D9AFA9031AF13D /* Assets.xcassets */; };
+		24A8B8B4B35CD7A01438A7BE /* WorkflowViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CB1E67EF6F854D44D0180F8 /* WorkflowViews.swift */; };
+		31B72EBF9EC92AC1672C25BB /* StudioModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 563BF2C890BC5695EA1CE2BF /* StudioModel.swift */; };
+		646CE0378855B6F717F52D48 /* StudioView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26E3C091F50FAE0846570DD5 /* StudioView.swift */; };
+		7609A247D0551D6EEE4D2FC5 /* LokanowApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DEB6DC03366A03C492FAB02 /* LokanowApp.swift */; };
+		943DEA0712476F56A2D8D762 /* LokanowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 978C71958376BEA3218FB35F /* LokanowUITests.swift */; };
+		C69AD9032323699AF1843042 /* TranslationCacheView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78076C517BC13C093D9466A5 /* TranslationCacheView.swift */; };
+		D0511FF05274B1DCEE8906B0 /* Security.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35154E3AC3C0D6122E751CFC /* Security.swift */; };
+		F97663680138DEEB07EBFCB0 /* LocalizeCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9BF24B80451E25517C4497CB /* LocalizeCore */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		1A6D926B6996AF2AC02DBFF9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6F7D1B47F9A3A7B2C3F617C7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BA2296C0A7D2393A22D11FC3;
+			remoteInfo = Lokanow;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0BFBBC1645EF1DA13E6493A9 /* LokanowUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LokanowUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		1B85042B96D9AFA9031AF13D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		26E3C091F50FAE0846570DD5 /* StudioView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioView.swift; sourceTree = "<group>"; };
+		35154E3AC3C0D6122E751CFC /* Security.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Security.swift; sourceTree = "<group>"; };
+		3CB1E67EF6F854D44D0180F8 /* WorkflowViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowViews.swift; sourceTree = "<group>"; };
+		563BF2C890BC5695EA1CE2BF /* StudioModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioModel.swift; sourceTree = "<group>"; };
+		6DEB6DC03366A03C492FAB02 /* LokanowApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LokanowApp.swift; sourceTree = "<group>"; };
+		78076C517BC13C093D9466A5 /* TranslationCacheView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationCacheView.swift; sourceTree = "<group>"; };
+		978C71958376BEA3218FB35F /* LokanowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LokanowUITests.swift; sourceTree = "<group>"; };
+		B7A63C20EAA13D7220B109EF /* Lokanow.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Lokanow.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DADEDC8F957E6C94BEE0DCCA /* lokanow */ = {isa = PBXFileReference; lastKnownFileType = folder; name = lokanow; path = .; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		878F09ADD3A9B017C59AE197 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F97663680138DEEB07EBFCB0 /* LocalizeCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		2A13E03B74D4324ACD078171 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				1B85042B96D9AFA9031AF13D /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		AE96F7AEAD81F4D89E03B886 /* LokanowUITests */ = {
+			isa = PBXGroup;
+			children = (
+				978C71958376BEA3218FB35F /* LokanowUITests.swift */,
+			);
+			name = LokanowUITests;
+			path = Tests/LokanowUITests;
+			sourceTree = "<group>";
+		};
+		B223BD46D6C3771D7CDA41C5 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B7A63C20EAA13D7220B109EF /* Lokanow.app */,
+				0BFBBC1645EF1DA13E6493A9 /* LokanowUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		BC60F0012862CF0788A23A3F /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				DADEDC8F957E6C94BEE0DCCA /* lokanow */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		C8C12EC6FE9B09D5EB851F48 /* Lokanow */ = {
+			isa = PBXGroup;
+			children = (
+				6DEB6DC03366A03C492FAB02 /* LokanowApp.swift */,
+				35154E3AC3C0D6122E751CFC /* Security.swift */,
+				563BF2C890BC5695EA1CE2BF /* StudioModel.swift */,
+				26E3C091F50FAE0846570DD5 /* StudioView.swift */,
+				78076C517BC13C093D9466A5 /* TranslationCacheView.swift */,
+				3CB1E67EF6F854D44D0180F8 /* WorkflowViews.swift */,
+			);
+			name = Lokanow;
+			path = Sources/Lokanow;
+			sourceTree = "<group>";
+		};
+		FD7343B9185DD55B7DA2F6A7 = {
+			isa = PBXGroup;
+			children = (
+				C8C12EC6FE9B09D5EB851F48 /* Lokanow */,
+				AE96F7AEAD81F4D89E03B886 /* LokanowUITests */,
+				BC60F0012862CF0788A23A3F /* Packages */,
+				2A13E03B74D4324ACD078171 /* Resources */,
+				B223BD46D6C3771D7CDA41C5 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		ADD62B03474FCCCA38709A18 /* LokanowUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3B8A36F085B8459683FDD0A7 /* Build configuration list for PBXNativeTarget "LokanowUITests" */;
+			buildPhases = (
+				380EB10E68D1AB938B4A1B4B /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C67F2096221B76E42AB819D6 /* PBXTargetDependency */,
+			);
+			name = LokanowUITests;
+			packageProductDependencies = (
+			);
+			productName = LokanowUITests;
+			productReference = 0BFBBC1645EF1DA13E6493A9 /* LokanowUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		BA2296C0A7D2393A22D11FC3 /* Lokanow */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 527A2908D5A6E161D4A8C3F8 /* Build configuration list for PBXNativeTarget "Lokanow" */;
+			buildPhases = (
+				B6BA61DFE5A1BD4880401D12 /* Sources */,
+				703CF6D22793F0AD765AE9E7 /* Resources */,
+				878F09ADD3A9B017C59AE197 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Lokanow;
+			packageProductDependencies = (
+				9BF24B80451E25517C4497CB /* LocalizeCore */,
+			);
+			productName = Lokanow;
+			productReference = B7A63C20EAA13D7220B109EF /* Lokanow.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		6F7D1B47F9A3A7B2C3F617C7 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					ADD62B03474FCCCA38709A18 = {
+						ProvisioningStyle = Automatic;
+						TestTargetID = BA2296C0A7D2393A22D11FC3;
+					};
+					BA2296C0A7D2393A22D11FC3 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = CA8C79E1A53F241B35D5CF65 /* Build configuration list for PBXProject "Lokanow" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = FD7343B9185DD55B7DA2F6A7;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				6301F55FABB60A00D1D70956 /* XCLocalSwiftPackageReference "." */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = B223BD46D6C3771D7CDA41C5 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				BA2296C0A7D2393A22D11FC3 /* Lokanow */,
+				ADD62B03474FCCCA38709A18 /* LokanowUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		703CF6D22793F0AD765AE9E7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0B2CFD80EAAA004FC44FA9E2 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		380EB10E68D1AB938B4A1B4B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				943DEA0712476F56A2D8D762 /* LokanowUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B6BA61DFE5A1BD4880401D12 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7609A247D0551D6EEE4D2FC5 /* LokanowApp.swift in Sources */,
+				D0511FF05274B1DCEE8906B0 /* Security.swift in Sources */,
+				31B72EBF9EC92AC1672C25BB /* StudioModel.swift in Sources */,
+				646CE0378855B6F717F52D48 /* StudioView.swift in Sources */,
+				C69AD9032323699AF1843042 /* TranslationCacheView.swift in Sources */,
+				24A8B8B4B35CD7A01438A7BE /* WorkflowViews.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		C67F2096221B76E42AB819D6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BA2296C0A7D2393A22D11FC3 /* Lokanow */;
+			targetProxy = 1A6D926B6996AF2AC02DBFF9 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		5390A9FAAEB1C69D2A1A72D2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		761A53A13F8461318BC0B06A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Resources/Lokanow.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_APP_SANDBOX = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Lokanow;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Lokanow";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lokanow.mac;
+				PRODUCT_NAME = Lokanow;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		9C3BE3FA3B906D8BA132A9B5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lokanow.uitests;
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = Lokanow;
+			};
+			name = Debug;
+		};
+		AD3CA6E79E4A3E1882C85C15 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		CFCAC822861B7F409726CF43 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Resources/Lokanow.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_APP_SANDBOX = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Lokanow;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Lokanow";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lokanow.mac;
+				PRODUCT_NAME = Lokanow;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		E812DBD2639AC4F241B93139 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lokanow.uitests;
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = Lokanow;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		3B8A36F085B8459683FDD0A7 /* Build configuration list for PBXNativeTarget "LokanowUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9C3BE3FA3B906D8BA132A9B5 /* Debug */,
+				E812DBD2639AC4F241B93139 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		527A2908D5A6E161D4A8C3F8 /* Build configuration list for PBXNativeTarget "Lokanow" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				761A53A13F8461318BC0B06A /* Debug */,
+				CFCAC822861B7F409726CF43 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		CA8C79E1A53F241B35D5CF65 /* Build configuration list for PBXProject "Lokanow" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5390A9FAAEB1C69D2A1A72D2 /* Debug */,
+				AD3CA6E79E4A3E1882C85C15 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		6301F55FABB60A00D1D70956 /* XCLocalSwiftPackageReference "." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = .;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		9BF24B80451E25517C4497CB /* LocalizeCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LocalizeCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 6F7D1B47F9A3A7B2C3F617C7 /* Project object */;
+}

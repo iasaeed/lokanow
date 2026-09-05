@@ -1,0 +1,27 @@
+.build/
+DerivedData/
+build/
+.DS_Store
+*.xcuserstate
+xcuserdata/
+.lokanow/
+
+# Local credentials and signing material
+.env
+.env.*
+!.env.example
+*.p8
+*.p12
+*.pfx
+*.pem
+*.key
+*.mobileprovision
+*.provisionprofile
+*.keychain
+*.keychain-db
+# Private diagnostics and runtime data
+secret-scan*.json
+cache-*.json
+reports.json
+*.xcarchive/
+*.dSYM/

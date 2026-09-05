@@ -1,0 +1,61 @@
+name: Lokanow
+options:
+  bundleIdPrefix: com.lokanow
+  deploymentTarget:
+    macOS: '14.0'
+  xcodeVersion: '26.0'
+packages:
+  LocalizeEngine:
+    path: .
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    MACOSX_DEPLOYMENT_TARGET: '14.0'
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_HARDENED_RUNTIME: YES
+    GENERATE_INFOPLIST_FILE: YES
+    MARKETING_VERSION: '1.0.0'
+    CURRENT_PROJECT_VERSION: '1'
+targets:
+  Lokanow:
+    type: application
+    platform: macOS
+    sources:
+      - Sources/Lokanow
+      - Resources/Assets.xcassets
+    dependencies:
+      - package: LocalizeEngine
+        product: LocalizeCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lokanow.mac
+        PRODUCT_NAME: Lokanow
+        INFOPLIST_KEY_CFBundleDisplayName: Lokanow
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
+        INFOPLIST_KEY_NSHumanReadableCopyright: Copyright © 2026 Lokanow
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_APP_SANDBOX: YES
+        CODE_SIGN_ENTITLEMENTS: Resources/Lokanow.entitlements
+  LokanowUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources: Tests/LokanowUITests
+    dependencies:
+      - target: Lokanow
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lokanow.uitests
+        TEST_TARGET_NAME: Lokanow
+        ENABLE_HARDENED_RUNTIME: NO
+schemes:
+  Lokanow:
+    build:
+      targets:
+        Lokanow: all
+        LokanowUITests: [test]
+    test:
+      targets: [LokanowUITests]
+    run:
+      config: Debug
+    archive:
+      config: Release
