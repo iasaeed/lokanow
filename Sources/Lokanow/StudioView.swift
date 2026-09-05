@@ -146,6 +146,7 @@ struct ModulesView: View {
     @State var query = ""
     @State var configuration: Module?
     @State var showRemoved = false
+    @State private var showWarnings = false
     var filtered: [Module] { model.modules.filter { (showRemoved || !(model.saved.removedModules ?? []).contains($0.id)) && (query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) || $0.root.path.localizedCaseInsensitiveContains(query)) } }
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -156,7 +157,7 @@ struct ModulesView: View {
                     Toggle("Select \(module.name)", isOn: Binding(get: { model.saved.selectedModules.contains(module.id) }, set: { if $0 { model.saved.selectedModules.insert(module.id) } else { model.saved.selectedModules.remove(module.id) }; model.persist() })).labelsHidden().toggleStyle(.checkbox).disabled((model.saved.removedModules ?? []).contains(module.id))
                 }.width(24)
                 TableColumn("Target") { module in
-                    Label(module.name, systemImage: module.kind == "Application" ? "app" : "shippingbox").help(module.root.path)
+                    Label(module.name, systemImage: module.kind == "Application" ? "app" : "shippingbox").lineLimit(1).truncationMode(.middle).help(module.name + "\n" + module.root.path)
                 }.width(min: 140, ideal: 200)
                 TableColumn("Type", value: \.kind).width(min: 90, ideal: 110)
                 TableColumn("Prefix") { module in Text(model.saved.options[module.id]?.prefix ?? "").font(.system(size: 11, design: .monospaced)) }.width(60)
@@ -176,12 +177,17 @@ struct ModulesView: View {
                         }
                     }
                 }.width(120)
-            }.contextMenu { Button("Refresh Targets") { model.discover() } }
+            }.frame(minHeight: 240, maxHeight: .infinity)
+                .contextMenu { Button("Refresh Targets") { model.discover() } }
             if filtered.isEmpty { Text(query.isEmpty ? (model.modules.isEmpty ? "No targets discovered in this project." : "All modules are removed. Enable Show Removed to restore them.") : "No matching targets.").foregroundStyle(.secondary) }
-            ForEach(filtered.filter { !$0.warnings.isEmpty }) { module in
-                DisclosureGroup("\(module.name): \(module.warnings.count) warnings") {
-                    ForEach(module.warnings, id: \.self) { Text($0).font(.caption).foregroundStyle(.secondary) }
-                }.foregroundStyle(.orange)
+            let warningModules = filtered.filter { !$0.warnings.isEmpty }
+            if !warningModules.isEmpty {
+                HStack {
+                    Label("\(warningModules.reduce(0) { $0 + $1.warnings.count }) warnings in \(warningModules.count) targets", systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.orange).font(.system(size: 11))
+                    Spacer()
+                    Button("Review Warnings…") { showWarnings = true }
+                }
             }
             HStack {
                 Text("\(model.modules.count) targets · \(model.selected.count) selected · \(model.selected.reduce(0) { $0 + $1.sources.count }) Swift files").font(.system(size: 11)).foregroundStyle(.secondary)
@@ -189,7 +195,46 @@ struct ModulesView: View {
                 Button("Analyze Selected Modules") { model.analyze() }.disabled(model.selected.isEmpty || model.busy || model.recoveryNeeded)
             }
         }.padding(12).disabled(model.busy)
+        .sheet(isPresented: $showWarnings) { ModuleWarningsView(modules: filtered.filter { !$0.warnings.isEmpty }) }
         .sheet(item: $configuration) { module in ModuleSettingsView(module: module, initial: model.saved.options[module.id] ?? ModuleOptions(module: module)).environmentObject(model) }
+    }
+}
+struct ModuleWarningsView: View {
+    @Environment(\.dismiss) private var dismiss
+    let modules: [Module]
+    @State private var query = ""
+    private var matching: [Module] {
+        modules.filter { query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) || $0.warnings.contains { $0.localizedCaseInsensitiveContains(query) } }
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Module Warnings").font(.headline)
+            Text("Review discovery warnings before configuring the affected targets.").foregroundStyle(.secondary)
+            TextField("Search targets or warnings", text: $query).textFieldStyle(.roundedBorder)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 16) {
+                    ForEach(matching) { module in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(module.name).font(.system(size: 13, weight: .semibold))
+                            Text(module.root.path).font(.caption).foregroundStyle(.secondary)
+                            ForEach(Array(module.warnings.enumerated()), id: \.offset) { _, warning in
+                                Label { Text(warning).textSelection(.enabled) } icon: {
+                                    Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange)
+                                }
+                            }
+                        }.frame(maxWidth: .infinity, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Divider()
+                    }
+                    if matching.isEmpty { Text("No matching warnings.").foregroundStyle(.secondary) }
+                }.padding(12)
+            }.background(Color(nsColor: .textBackgroundColor))
+            HStack {
+                Text("\(matching.count) targets").font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
+            }
+        }.padding(20).frame(width: 680, height: 500)
     }
 }
 struct ModuleSettingsView: View {

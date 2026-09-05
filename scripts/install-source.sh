@@ -7,8 +7,8 @@ version="$(/usr/bin/xcodebuild -version 2>/dev/null | head -n 1)"
 [[ "$version" =~ ^Xcode\ ([0-9]+) ]] && (( BASH_REMATCH[1] >= 26 )) || {
   echo "Select Xcode 26 or later before installing. Command Line Tools alone are insufficient." >&2; exit 1;
 }
-ref="${1:-v1.0.0}"
-[[ "$ref" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Expected a version such as v1.0.0." >&2; exit 1; }
+ref="${1:-v1.0.1}"
+[[ "$ref" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Expected a version such as v1.0.1." >&2; exit 1; }
 appdir="$HOME/Applications"
 target="$appdir/Lokanow.app"
 [[ ! -L "$appdir" && ! -e "$target" && ! -L "$target" ]] || {
