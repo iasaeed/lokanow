@@ -71,7 +71,7 @@ public enum Analyzer {
                     }
                     let id = stableID(file.path + ":\(candidate.offset):" + module.id)
                     if exclusions.contains(id) { status = .excluded; reason = "Excluded by your saved project rule."; replacement = nil }
-                    findings.append(Finding(id: id, moduleID: module.id, moduleName: module.name, file: file, line: candidate.line, offset: candidate.offset, length: candidate.length, literal: candidate.literal, english: status == .localized ? (existing[key] ?? english) : english, key: key, status: status, reason: reason, context: candidate.context, replacement: replacement, resource: resource?.url, selected: status == .ready))
+                    findings.append(Finding(id: id, moduleID: module.id, moduleName: module.name, file: file, line: candidate.line, offset: candidate.offset, length: candidate.length, literal: candidate.literal, english: status == .localized ? (existing[key] ?? english) : english, key: key, status: status, reason: reason, context: candidate.context, replacement: replacement, resource: resource?.url, selected: status == .ready, sourceForms: candidate.sourceForms))
                 }
             }
         }
@@ -79,6 +79,7 @@ public enum Analyzer {
     }
 }
 private struct LiteralCandidate {
+    var sourceForms: [String]
     var value: String; var literal: String; var offset: Int; var length: Int; var line: Int
     var status: FindingStatus; var reason: String; var context: String; var localized: Bool; var table: String?; var bundle: String?; var unsafeLookup: Bool
 }
@@ -206,7 +207,7 @@ private final class LiteralVisitor: SyntaxVisitor {
         }
         if value.contains("%") && status == .ready && !FormatValidation.placeholders(value).isEmpty { status = .review; reason = "Format string requires a placeholder-aware manual conversion." }
         if status == .ready && (value.contains("**") || value.contains("](") || value.contains("`")) { status = .review; reason = "Markdown-sensitive text needs a manual migration that preserves attributed rendering." }
-        candidates.append(LiteralCandidate(value: value, literal: literal, offset: offset, length: node.endPositionBeforeTrailingTrivia.utf8Offset - offset, line: line, status: status, reason: reason, context: context, localized: localized, table: table, bundle: bundle, unsafeLookup: unsafe))
+        candidates.append(LiteralCandidate(sourceForms: FindingHidePatterns.sourceForms(node), value: value, literal: literal, offset: offset, length: node.endPositionBeforeTrailingTrivia.utf8Offset - offset, line: line, status: status, reason: reason, context: context, localized: localized, table: table, bundle: bundle, unsafeLookup: unsafe))
         return .skipChildren
     }
 }

@@ -323,15 +323,29 @@ struct ModuleSettingsView: View {
 }
 struct StringsView: View {
     @EnvironmentObject var model: StudioModel
+    @AppStorage("hideResultPatternsEnabled") private var hidePatterns = true
+    @AppStorage("hideResultPatterns") private var hidePatternText = "{text}.Localized()"
+    @State private var hiddenIDs: Set<String> = []
     @State var query = ""
     @State var status = "All actionable"
     @State var selection: String?
     @State private var configuration: Module?
+    @State private var showReviewReasons = false
+    @State private var showAnalysisWarnings = false
     @State private var sortOrder = [KeyPathComparator(\Finding.english)]
     private var selectableIDs: Set<String> { Set(filtered.filter { $0.status == .ready }.map(\.id)) }
     var filtered: [Finding] { model.findings.filter { finding in
-        (query.isEmpty || finding.english.localizedCaseInsensitiveContains(query) || finding.key.localizedCaseInsensitiveContains(query) || finding.moduleName.localizedCaseInsensitiveContains(query)) && (status == "Everything" || (status == "All actionable" ? finding.status != .excluded && finding.status != .localized : finding.status.rawValue == status))
+        !hiddenIDs.contains(finding.id) && (query.isEmpty || finding.english.localizedCaseInsensitiveContains(query) || finding.key.localizedCaseInsensitiveContains(query) || finding.moduleName.localizedCaseInsensitiveContains(query)) && (status == "Everything" || (status == "All actionable" ? finding.status != .excluded && finding.status != .localized : finding.status.rawValue == status))
     } }
+    private func refreshHiddenResults() {
+        let matcher = FindingHidePatterns(hidePatternText)
+        hiddenIDs = hidePatterns ? Set(model.findings.filter { matcher.matches($0) }.map(\.id)) : []
+        // Hidden rows must not silently remain in the conversion preview.
+        for index in model.findings.indices where hiddenIDs.contains(model.findings[index].id) {
+            model.findings[index].selected = false
+        }
+        if let selection, hiddenIDs.contains(selection) { self.selection = nil }
+    }
     private func selectReady(_ selected: Bool) {
         let ids = selectableIDs
         for index in model.findings.indices where ids.contains(model.findings[index].id) { model.findings[index].selected = selected }
@@ -343,64 +357,101 @@ struct StringsView: View {
     }
     var current: Finding? { model.findings.first { $0.id == selection } }
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            PageHeading(eyebrow: "02 / Understand your strings", title: "Localization Analysis", subtitle: "Safe conversions are selected. Review ambiguous contexts and interpolated text separately.")
-            if model.analysis == nil { ContentUnavailableView("Analyze your modules first", systemImage: "text.magnifyingglass", description: Text("Choose one or more modules and run the Swift-aware analysis.")); Button("Analyze Selected Modules") { model.analyze() }.disabled(model.selected.isEmpty || model.busy) }
-            else {
-                HStack(spacing: 14) { Metric(title: "Selected conversions", value: "\(model.readyCount)", icon: "checkmark.circle"); Metric(title: "Need review", value: "\(model.unresolvedCount)", icon: "eye"); Metric(title: "Already localized", value: "\(model.findings.filter { $0.status == .localized }.count)", icon: "globe") }
-                if !model.findings.contains(where: { $0.status == .ready }) && !reviewReasons.isEmpty {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("No strings are ready to select yet").font(.system(size: 12, weight: .semibold))
-                        ForEach(Array(reviewReasons.prefix(3)), id: \.reason) { issue in
-                            Text("\(issue.count) strings: \(issue.reason)").font(.caption).fixedSize(horizontal: false, vertical: true)
+        GeometryReader { viewport in
+            VStack(alignment: .leading, spacing: 10) {
+                PageHeading(eyebrow: "02 / Understand your strings", title: "Localization Analysis", subtitle: "Safe conversions are selected. Review ambiguous contexts and interpolated text separately.")
+                if model.analysis == nil { ContentUnavailableView("Analyze your modules first", systemImage: "text.magnifyingglass", description: Text("Choose one or more modules and run the Swift-aware analysis.")); Button("Analyze Selected Modules") { model.analyze() }.disabled(model.selected.isEmpty || model.busy) }
+                else {
+                    HStack(spacing: 14) { Metric(title: "Selected conversions", value: "\(model.readyCount)", icon: "checkmark.circle"); Metric(title: "Need review", value: "\(model.unresolvedCount)", icon: "eye"); Metric(title: "Already localized", value: "\(model.findings.filter { $0.status == .localized }.count)", icon: "globe") }
+                    if !model.findings.contains(where: { $0.status == .ready }) && !reviewReasons.isEmpty {
+                        HStack {
+                            Label("No strings are ready to select yet", systemImage: "exclamationmark.triangle").font(.system(size: 12, weight: .semibold))
+                            Button("Why?") { showReviewReasons = true }
+                                .popover(isPresented: $showReviewReasons) {
+                                    ScrollView {
+                                        VStack(alignment: .leading, spacing: 10) {
+                                            Text("Review required").font(.headline)
+                                            ForEach(reviewReasons, id: \.reason) { issue in
+                                                Text("\(issue.count) strings: \(issue.reason)").fixedSize(horizontal: false, vertical: true)
+                                            }
+                                            Text("Select a row for its exact reason. Dynamic or ambiguous strings require manual review.").foregroundStyle(.secondary)
+                                        }.padding(16)
+                                    }.frame(width: 420, height: 280)
+                                }
+                            Spacer()
+                            Menu("Configure & Reanalyze…") {
+                                ForEach(model.selected) { module in Button(module.name) { configuration = module } }
+                            }.fixedSize()
+                        }.padding(8).background(.orange.opacity(0.08))
+                    }
+                    if let warnings = model.analysis?.warnings, !warnings.isEmpty {
+                        Button("\(warnings.count) analysis warnings") { showAnalysisWarnings = true }
+                            .popover(isPresented: $showAnalysisWarnings) {
+                                ScrollView {
+                                    LazyVStack(alignment: .leading, spacing: 8) {
+                                        ForEach(Array(warnings.enumerated()), id: \.offset) { _, warning in
+                                            Text(warning).font(.caption).fixedSize(horizontal: false, vertical: true)
+                                        }
+                                    }.padding(16)
+                                }.frame(width: 420, height: 280)
+                            }
+                    }
+                    HStack { TextField("Search English text, keys, or modules", text: $query).textFieldStyle(.roundedBorder); Picker("Show", selection: $status) { Text("All actionable").tag("All actionable"); Text("Everything").tag("Everything"); ForEach(FindingStatus.allCases, id: \.self) { Text($0.rawValue).tag($0.rawValue) } }.frame(width: 230) }
+                    HStack {
+                        Toggle("Hide patterns", isOn: $hidePatterns).toggleStyle(.checkbox)
+                        TextField("{text}.Localized(), {text}.localized, .localize({text}), ac.*", text: $hidePatternText)
+                            .textFieldStyle(.roundedBorder)
+                            .help("Comma-separated, case-sensitive patterns. {text} stands for a quoted Swift string. Use * for key formats, such as ac.*. Hidden rows are deselected.")
+                        Text("\(hiddenIDs.count) hidden").font(.caption).foregroundStyle(.secondary)
+                    }
+                    HStack {
+                        Button("Select All Ready") { selectReady(true) }.disabled(selectableIDs.isEmpty)
+                        Button("Deselect Ready") { selectReady(false) }.disabled(selectableIDs.isEmpty)
+                        Text("\(selectableIDs.count) selectable in this filter").font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                    Table(filtered.sorted(using: sortOrder), selection: $selection, sortOrder: $sortOrder) {
+                        TableColumn("") { finding in Toggle("Register \(finding.english)", isOn: Binding(get: { model.findings.first { $0.id == finding.id }?.selected ?? false }, set: { value in if let i = model.findings.firstIndex(where: { $0.id == finding.id }) { model.findings[i].selected = value } })).labelsHidden().disabled(finding.status != .ready) }.width(28)
+                        TableColumn("English value", value: \.english) { Text($0.english).lineLimit(2) }.width(min: 160, ideal: 280)
+                        TableColumn("Key", value: \.key) { Text($0.key).font(.system(.caption, design: .monospaced)) }.width(min: 160, ideal: 260)
+                        TableColumn("Module", value: \.moduleName).width(min: 80, ideal: 130)
+                        TableColumn("Status", value: \.status.rawValue) { StatusBadge(status: $0.status.rawValue) }.width(150)
+                    }.contextMenu(forSelectionType: String.self) { ids in
+                        if let id = ids.first, let finding = model.findings.first(where: { $0.id == id }) {
+                            Button("Open in Xcode at Line \(finding.line)") { model.openInXcode(finding) }
                         }
-                        Menu("Configure & Reanalyze…") {
-                            ForEach(model.selected) { module in Button(module.name) { configuration = module } }
-                        }.fixedSize()
-                        Text("Select a row to see its exact reason. Dynamic or ambiguous strings remain protected from automatic replacement.").font(.caption).foregroundStyle(.secondary)
-                    }.padding(10).frame(maxWidth: .infinity, alignment: .leading).background(.orange.opacity(0.08))
-                }
-                if let warnings = model.analysis?.warnings, !warnings.isEmpty { DisclosureGroup("\(warnings.count) analysis warnings") { ScrollView { VStack(alignment: .leading) { ForEach(warnings, id: \.self) { Text($0).font(.caption).foregroundStyle(.orange) } } }.frame(maxHeight: 90) } }
-                HStack { TextField("Search English text, keys, or modules", text: $query).textFieldStyle(.roundedBorder); Picker("Show", selection: $status) { Text("All actionable").tag("All actionable"); Text("Everything").tag("Everything"); ForEach(FindingStatus.allCases, id: \.self) { Text($0.rawValue).tag($0.rawValue) } }.frame(width: 230) }
-                HStack {
-                    Button("Select All Ready") { selectReady(true) }.disabled(selectableIDs.isEmpty)
-                    Button("Deselect Ready") { selectReady(false) }.disabled(selectableIDs.isEmpty)
-                    Text("\(selectableIDs.count) selectable in this filter").font(.caption).foregroundStyle(.secondary)
-                    Spacer()
-                }
-                Table(filtered.sorted(using: sortOrder), selection: $selection, sortOrder: $sortOrder) {
-                    TableColumn("") { finding in Toggle("Register \(finding.english)", isOn: Binding(get: { model.findings.first { $0.id == finding.id }?.selected ?? false }, set: { value in if let i = model.findings.firstIndex(where: { $0.id == finding.id }) { model.findings[i].selected = value } })).labelsHidden().disabled(finding.status != .ready) }.width(28)
-                    TableColumn("English value", value: \.english) { Text($0.english).lineLimit(2) }.width(min: 160, ideal: 280)
-                    TableColumn("Key", value: \.key) { Text($0.key).font(.system(.caption, design: .monospaced)) }.width(min: 160, ideal: 260)
-                    TableColumn("Module", value: \.moduleName).width(min: 80, ideal: 130)
-                    TableColumn("Status", value: \.status.rawValue) { StatusBadge(status: $0.status.rawValue) }.width(150)
-                }.contextMenu(forSelectionType: String.self) { ids in
-                    if let id = ids.first, let finding = model.findings.first(where: { $0.id == id }) {
-                        Button("Open in Xcode at Line \(finding.line)") { model.openInXcode(finding) }
+                    } primaryAction: { ids in
+                        if let id = ids.first, let finding = model.findings.first(where: { $0.id == id }) {
+                            model.openInXcode(finding)
+                        }
                     }
-                } primaryAction: { ids in
-                    if let id = ids.first, let finding = model.findings.first(where: { $0.id == id }) {
-                        model.openInXcode(finding)
+                    .overlay(alignment: .topLeading, content: { TableSelectionHeader(
+                        selectedCount: model.findings.filter { selectableIDs.contains($0.id) && $0.selected }.count,
+                        totalCount: selectableIDs.count, enabled: !model.busy,
+                        label: "Select all filtered safe conversions") { select in
+                            let ids = selectableIDs
+                            for index in model.findings.indices where ids.contains(model.findings[index].id) { model.findings[index].selected = select }
+                        }.frame(width: 18, height: 22).padding(.leading, 5) })
+                        .frame(minHeight: 0, maxHeight: .infinity)
+                        .clipped()
+                    if let current {
+                        ScrollView { VStack(alignment: .leading, spacing: 7) {
+                            HStack { Text("\(current.file.lastPathComponent):\(current.line) · \(current.context)").font(.subheadline.weight(.medium)).lineLimit(1).truncationMode(.middle); Spacer(); Button("Open in Xcode") { model.openInXcode(current) }; Button("Configure & Reanalyze…") { configuration = model.modules.first { $0.id == current.moduleID } }; Button("Exclude") { model.exclude(current.id) } }
+                            Text(current.reason).font(.caption).foregroundStyle(.secondary)
+                            if let replacement = current.replacement { Text(replacement).font(.system(.caption, design: .monospaced)).textSelection(.enabled).lineLimit(4) }
+                        }.padding(10).frame(maxWidth: .infinity, alignment: .leading)
+                        }.frame(height: min(100, viewport.size.height * 0.18)).background(Color(nsColor: .controlBackgroundColor))
                     }
+                    HStack { Button("Reanalyze") { model.analyze() }; Button("Export analysis") { model.exportFindings() }; Spacer(); Text("\(filtered.count) occurrences").font(.caption).foregroundStyle(.secondary); Button("Preview \(model.readyCount) Conversions") { model.previewRegistration() }.buttonStyle(.bordered).disabled(model.readyCount == 0 || model.recoveryNeeded) }
                 }
-                .overlay(alignment: .topLeading, content: { TableSelectionHeader(
-                    selectedCount: model.findings.filter { selectableIDs.contains($0.id) && $0.selected }.count,
-                    totalCount: selectableIDs.count, enabled: !model.busy,
-                    label: "Select all filtered safe conversions") { select in
-                        let ids = selectableIDs
-                        for index in model.findings.indices where ids.contains(model.findings[index].id) { model.findings[index].selected = select }
-                    }.frame(width: 18, height: 22).padding(.leading, 5) })
-                    .frame(minHeight: 160)
-                if let current {
-                    VStack(alignment: .leading, spacing: 7) {
-                        HStack { Text("\(current.file.lastPathComponent):\(current.line) · \(current.context)").font(.subheadline.weight(.medium)); Spacer(); Button("Open in Xcode") { model.openInXcode(current) }; Button("Configure & Reanalyze…") { configuration = model.modules.first { $0.id == current.moduleID } }; Button("Exclude") { model.exclude(current.id) } }
-                        Text(current.reason).font(.caption).foregroundStyle(.secondary)
-                        if let replacement = current.replacement { Text(replacement).font(.system(.caption, design: .monospaced)).textSelection(.enabled).lineLimit(4) }
-                    }.padding(14).frame(maxWidth: .infinity, alignment: .leading).background(Color(nsColor: .controlBackgroundColor))
-                }
-                HStack { Button("Reanalyze") { model.analyze() }; Button("Export analysis") { model.exportFindings() }; Spacer(); Text("\(filtered.count) occurrences").font(.caption).foregroundStyle(.secondary); Button("Preview \(model.readyCount) Conversions") { model.previewRegistration() }.buttonStyle(.bordered).disabled(model.readyCount == 0 || model.recoveryNeeded) }
-            }
-        }.padding(12).disabled(model.busy)
+            }.padding(12)
+            .frame(width: viewport.size.width, height: viewport.size.height, alignment: .topLeading)
+        }.clipped().disabled(model.busy)
+        .onAppear { refreshHiddenResults() }
+        .onChange(of: hidePatterns) { refreshHiddenResults() }
+        .onChange(of: hidePatternText) { refreshHiddenResults() }
+        .onChange(of: model.findings.map(\.id)) { refreshHiddenResults() }
+        .onChange(of: model.busy) { if !model.busy { refreshHiddenResults() } }
         .sheet(item: $configuration) { module in
             ModuleSettingsView(module: module, initial: model.saved.options[module.id] ?? ModuleOptions(module: module), onSave: { model.analyze() }).environmentObject(model)
         }

@@ -8,9 +8,9 @@ case "$version_major" in
   ''|*[!0-9]*) echo "Select Xcode 26 or later. Command Line Tools alone are insufficient." >&2; exit 1 ;;
 esac
 [ "$version_major" -ge 26 ] || { echo "Xcode 26 or later is required." >&2; exit 1; }
-ref="${1:-v1.0.3}"
+ref="${1:-v1.0.4}"
 printf '%s\n' "$ref" | /usr/bin/grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' || {
-  echo "Expected a version such as v1.0.3." >&2; exit 1;
+  echo "Expected a version such as v1.0.4." >&2; exit 1;
 }
 appdir="$HOME/Applications"
 target="$appdir/Lokanow.app"

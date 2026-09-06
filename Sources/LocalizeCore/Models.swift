@@ -72,6 +72,7 @@ public struct Finding: Identifiable, Codable, Sendable {
     public var replacement: String?
     public var resource: URL?
     public var selected: Bool
+    public var sourceForms: [String]? = nil
 }
 public struct Analysis: Sendable {
     public var findings: [Finding]
