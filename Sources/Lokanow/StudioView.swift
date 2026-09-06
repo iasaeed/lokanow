@@ -30,6 +30,8 @@ struct StudioView: View {
                     }
                 }.listStyle(.sidebar)
                 Divider()
+                SidebarLokaliseProject().padding(10)
+                Divider()
                 HStack {
                     Button { model.chooseProject() } label: { Image(systemName: "folder.badge.plus") }.help("Open Project…").disabled(model.busy)
                     Spacer()
@@ -324,7 +326,8 @@ struct ModuleSettingsView: View {
 struct StringsView: View {
     @EnvironmentObject var model: StudioModel
     @AppStorage("hideResultPatternsEnabled") private var hidePatterns = true
-    @AppStorage("hideResultPatterns") private var hidePatternText = "{text}.Localized()"
+    @State private var hidePatternText = UserDefaults.standard.string(forKey: "hideResultPatterns") ?? "{text}.Localized()"
+    @State private var filterTask: Task<Void, Never>?
     @State private var hiddenIDs: Set<String> = []
     @State var query = ""
     @State var status = "All actionable"
@@ -333,18 +336,55 @@ struct StringsView: View {
     @State private var showReviewReasons = false
     @State private var showAnalysisWarnings = false
     @State private var sortOrder = [KeyPathComparator(\Finding.english)]
-    private var selectableIDs: Set<String> { Set(filtered.filter { $0.status == .ready }.map(\.id)) }
-    var filtered: [Finding] { model.findings.filter { finding in
-        !hiddenIDs.contains(finding.id) && (query.isEmpty || finding.english.localizedCaseInsensitiveContains(query) || finding.key.localizedCaseInsensitiveContains(query) || finding.moduleName.localizedCaseInsensitiveContains(query)) && (status == "Everything" || (status == "All actionable" ? finding.status != .excluded && finding.status != .localized : finding.status.rawValue == status))
-    } }
-    private func refreshHiddenResults() {
-        let matcher = FindingHidePatterns(hidePatternText)
-        hiddenIDs = hidePatterns ? Set(model.findings.filter { matcher.matches($0) }.map(\.id)) : []
-        // Hidden rows must not silently remain in the conversion preview.
-        for index in model.findings.indices where hiddenIDs.contains(model.findings[index].id) {
-            model.findings[index].selected = false
+    @State private var filtered: [Finding] = []
+    @State private var selectableIDs: Set<String> = []
+    @State private var searchTask: Task<Void, Never>?
+    @State private var searching = false
+    private func refreshSearch(_ snapshot: [Finding]? = nil) {
+        searchTask?.cancel()
+        let snapshot = snapshot ?? model.findings, query = query, status = status, hidden = hiddenIDs, order = sortOrder
+        searching = true
+        searchTask = Task {
+            let work = Task.detached(priority: .userInitiated) {
+                try FindingSearch.results(snapshot, query: query, status: status, hiddenIDs: hidden, sortOrder: order)
+            }
+            do {
+                let rows = try await withTaskCancellationHandler(operation: { try await work.value }, onCancel: { work.cancel() })
+                try Task.checkCancellation()
+                filtered = rows
+                selectableIDs = Set(rows.filter { $0.status == .ready }.map(\.id))
+                searching = false
+            } catch { /* Replaced by a newer search or the view closed. */ }
         }
-        if let selection, hiddenIDs.contains(selection) { self.selection = nil }
+    }
+    private func refreshHiddenResults() {
+        filterTask?.cancel()
+        let snapshot = model.findings, pattern = hidePatternText, enabled = hidePatterns
+        filterTask = Task {
+            let work = Task.detached(priority: .userInitiated) {
+                let matcher = FindingHidePatterns(pattern)
+                var ids: Set<String> = []
+                if enabled {
+                    for finding in snapshot {
+                        try Task.checkCancellation()
+                        if matcher.matches(finding) { ids.insert(finding.id) }
+                    }
+                }
+                return ids
+            }
+            do {
+                let ids = try await withTaskCancellationHandler(operation: { try await work.value }, onCancel: { work.cancel() })
+                try Task.checkCancellation()
+                hiddenIDs = ids
+                // Publish one change instead of one notification per hidden row.
+                var findings = model.findings, changed = false
+                for index in findings.indices where ids.contains(findings[index].id) && findings[index].selected {
+                    findings[index].selected = false; changed = true
+                }
+                if changed { model.findings = findings }
+                if let selection, ids.contains(selection) { self.selection = nil }
+            } catch { /* A newer filter or analysis replaced this request. */ }
+        }
     }
     private func selectReady(_ selected: Bool) {
         let ids = selectableIDs
@@ -396,12 +436,10 @@ struct StringsView: View {
                                 }.frame(width: 420, height: 280)
                             }
                     }
-                    HStack { TextField("Search English text, keys, or modules", text: $query).textFieldStyle(.roundedBorder); Picker("Show", selection: $status) { Text("All actionable").tag("All actionable"); Text("Everything").tag("Everything"); ForEach(FindingStatus.allCases, id: \.self) { Text($0.rawValue).tag($0.rawValue) } }.frame(width: 230) }
+                    HStack { DebouncedFindingSearch { query = $0 }; if searching { ProgressView().controlSize(.mini).help("Updating results") }; Picker("Show", selection: $status) { Text("All actionable").tag("All actionable"); Text("Everything").tag("Everything"); ForEach(FindingStatus.allCases, id: \.self) { Text($0.rawValue).tag($0.rawValue) } }.frame(width: 230) }
                     HStack {
                         Toggle("Hide patterns", isOn: $hidePatterns).toggleStyle(.checkbox)
-                        TextField("{text}.Localized(), {text}.localized, .localize({text}), ac.*", text: $hidePatternText)
-                            .textFieldStyle(.roundedBorder)
-                            .help("Comma-separated, case-sensitive patterns. {text} stands for a quoted Swift string. Use * for key formats, such as ac.*. Hidden rows are deselected.")
+                        HidePatternField { hidePatternText = $0 }
                         Text("\(hiddenIDs.count) hidden").font(.caption).foregroundStyle(.secondary)
                     }
                     HStack {
@@ -410,19 +448,17 @@ struct StringsView: View {
                         Text("\(selectableIDs.count) selectable in this filter").font(.caption).foregroundStyle(.secondary)
                         Spacer()
                     }
-                    Table(filtered.sorted(using: sortOrder), selection: $selection, sortOrder: $sortOrder) {
+                    Table(filtered, selection: $selection, sortOrder: $sortOrder) {
                         TableColumn("") { finding in Toggle("Register \(finding.english)", isOn: Binding(get: { model.findings.first { $0.id == finding.id }?.selected ?? false }, set: { value in if let i = model.findings.firstIndex(where: { $0.id == finding.id }) { model.findings[i].selected = value } })).labelsHidden().disabled(finding.status != .ready) }.width(28)
-                        TableColumn("English value", value: \.english) { Text($0.english).lineLimit(2) }.width(min: 160, ideal: 280)
-                        TableColumn("Key", value: \.key) { Text($0.key).font(.system(.caption, design: .monospaced)) }.width(min: 160, ideal: 260)
+                        TableColumn("English value", value: \.english) { finding in Text(finding.english).lineLimit(2).contentShape(Rectangle()).onTapGesture(count: 2) { model.openInXcode(finding) } }.width(min: 160, ideal: 280)
+                        TableColumn("Key", value: \.key) { finding in
+                            EditableFindingKey(finding: finding) { await model.editFindingKey(id: finding.id, key: $0) }
+                        }.width(min: 220, ideal: 320)
                         TableColumn("Module", value: \.moduleName).width(min: 80, ideal: 130)
                         TableColumn("Status", value: \.status.rawValue) { StatusBadge(status: $0.status.rawValue) }.width(150)
                     }.contextMenu(forSelectionType: String.self) { ids in
                         if let id = ids.first, let finding = model.findings.first(where: { $0.id == id }) {
                             Button("Open in Xcode at Line \(finding.line)") { model.openInXcode(finding) }
-                        }
-                    } primaryAction: { ids in
-                        if let id = ids.first, let finding = model.findings.first(where: { $0.id == id }) {
-                            model.openInXcode(finding)
                         }
                     }
                     .overlay(alignment: .topLeading, content: { TableSelectionHeader(
@@ -448,9 +484,16 @@ struct StringsView: View {
             .frame(width: viewport.size.width, height: viewport.size.height, alignment: .topLeading)
         }.clipped().disabled(model.busy)
         .onAppear { refreshHiddenResults() }
+        .onDisappear { filterTask?.cancel(); searchTask?.cancel() }
+        .onReceive(model.$findings) { refreshSearch($0) }
+        .onChange(of: query) { refreshSearch() }
+        .onChange(of: status) { refreshSearch() }
+        .onChange(of: hiddenIDs) { refreshSearch() }
+        .onChange(of: sortOrder) { refreshSearch() }
         .onChange(of: hidePatterns) { refreshHiddenResults() }
         .onChange(of: hidePatternText) { refreshHiddenResults() }
         .onChange(of: model.findings.map(\.id)) { refreshHiddenResults() }
+        .onChange(of: model.findings.map(\.key)) { refreshHiddenResults() }
         .onChange(of: model.busy) { if !model.busy { refreshHiddenResults() } }
         .sheet(item: $configuration) { module in
             ModuleSettingsView(module: module, initial: model.saved.options[module.id] ?? ModuleOptions(module: module), onSave: { model.analyze() }).environmentObject(model)
@@ -463,5 +506,136 @@ struct StatusBadge: View {
     var body: some View {
         Label(status, systemImage: success ? "checkmark.circle" : (status == "Excluded" ? "minus.circle" : "exclamationmark.triangle.fill"))
             .font(.system(size: 11)).foregroundStyle(success || status == "Excluded" ? Color.secondary : Color.orange)
+    }
+}
+
+/// Keep draft keystrokes local so a large results table only updates after the debounce.
+private struct HidePatternField: View {
+    let onApply: (String) -> Void
+    @State private var draft = UserDefaults.standard.string(forKey: "hideResultPatterns") ?? "{text}.Localized()"
+    var body: some View {
+        TextField("{text}.Localized(), {text}.localized, .localize({text}), ac.*", text: $draft)
+            .textFieldStyle(.roundedBorder)
+            .help("Comma-separated, case-sensitive patterns. {text} represents a quoted string; * matches key formats. Updates one second after typing stops. Hidden rows are deselected.")
+            .task(id: draft) {
+                do {
+                    try await Task.sleep(for: .seconds(1))
+                    try Task.checkCancellation()
+                    UserDefaults.standard.set(draft, forKey: "hideResultPatterns")
+                    onApply(draft)
+                } catch { /* New input restarts the one-second debounce. */ }
+            }
+    }
+}
+
+private struct EditableFindingKey: View {
+    let finding: Finding
+    let apply: (String) async -> String?
+    @State private var editing = false
+    @State private var draft = ""
+    @State private var error: String?
+    @State private var saving = false
+    @FocusState private var focused: Bool
+    private func save() {
+        guard !saving else { return }
+        saving = true
+        Task {
+            error = await apply(draft)
+            saving = false
+            if error == nil { editing = false }
+        }
+    }
+    var body: some View {
+        Group {
+            if editing {
+                HStack(spacing: 4) {
+                    TextField("Localization key", text: $draft).textFieldStyle(.roundedBorder).focused($focused).onSubmit { save() }
+                    Button("Apply") { save() }.disabled(saving || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Button { editing = false; error = nil } label: { Image(systemName: "xmark") }.help("Cancel key edit").disabled(saving)
+                }.onExitCommand { if !saving { editing = false } }
+            } else {
+                Text(finding.key).frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+                    .onTapGesture(count: 2) {
+                        guard [.ready, .review].contains(finding.status) else { return }
+                        draft = finding.key; editing = true; focused = true
+                    }
+                    .help("Double-click to edit a pending key. Applies to matching occurrences in this module. Reanalyzing resets manual key edits.")
+            }
+        }.font(.system(.caption, design: .monospaced)).buttonStyle(.borderless)
+            .alert("Key could not be applied", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) { Button("OK") { error = nil } } message: { Text(error ?? "") }
+    }
+}
+
+private struct DebouncedFindingSearch: View {
+    let onSearch: (String) -> Void
+    @State private var draft = ""
+    var body: some View {
+        TextField("Search English text, keys, or modules", text: $draft)
+            .textFieldStyle(.roundedBorder)
+            .help("Search updates one second after typing stops. Clearing the field updates immediately.")
+            .task(id: draft) {
+                do {
+                    if !draft.isEmpty { try await Task.sleep(for: .seconds(1)) }
+                    try Task.checkCancellation()
+                    onSearch(draft)
+                } catch { /* New input restarts the debounce. */ }
+            }
+    }
+}
+
+private struct SidebarLokaliseProject: View {
+    @EnvironmentObject var model: StudioModel
+    private var hasToken: Bool { !model.token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    private var projectName: String {
+        model.projects.first { $0.id == model.defaultProject }?.name ?? model.defaultProject
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Lokalise").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            SettingsLink {
+                HStack(spacing: 6) {
+                    Image(systemName: "globe")
+                    VStack(alignment: .leading, spacing: 3) {
+                        if !hasToken {
+                            Text("Need to be configured").foregroundStyle(.orange)
+                        } else if model.defaultProject.isEmpty {
+                            Text("Choose Lokalise Project")
+                        } else {
+                            Text(projectName).lineLimit(2).truncationMode(.middle)
+                            if !model.defaultBranch.isEmpty {
+                                Text(model.defaultBranch).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                        }
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.secondary)
+                }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+            }.buttonStyle(.plain).help("Open Settings to configure the Lokalise token and project")
+            if model.cacheRefreshing {
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.mini)
+                    Text("Refreshing translations…").font(.caption)
+                }
+                Text(model.cacheActivity).font(.caption2).foregroundStyle(.secondary).lineLimit(2)
+            } else {
+                if hasToken, let date = model.cacheDate, !model.defaultProject.isEmpty {
+                    Text("Updated \(date.formatted(date: .abbreviated, time: .shortened))")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+                if !model.cacheIssues.isEmpty {
+                    Label("Refresh needs attention", systemImage: "exclamationmark.triangle")
+                        .font(.caption2).foregroundStyle(.orange).help(model.cacheIssues.joined(separator: "\n"))
+                }
+            }
+            if hasToken {
+                Button { model.refreshTranslationCache() } label: {
+                    Label("Refresh Translations", systemImage: "arrow.clockwise")
+                }.disabled(model.busy || model.cacheRefreshing)
+                    .help("Fetch all available languages again for accessible Lokalise projects and configured branches")
+            } else {
+                SettingsLink { Label("Refresh Translations", systemImage: "arrow.clockwise") }
+                    .help("Need to be configured. Open Settings to add your Lokalise API token.")
+            }
+        }.font(.system(size: 12)).controlSize(.small)
     }
 }

@@ -51,20 +51,35 @@ struct PlanView: View {
     @State var selected: String?
     @State var mode = "Diff"
     var current: FileChange? { plan.changes.first { $0.id == selected } ?? plan.changes.first }
-    func editorText(_ change: FileChange) -> AttributedString {
-        let source = mode == "Diff" ? FileDiff.unified(change) : (mode == "Before" ? change.beforeText : change.afterText)
-        var result = AttributedString()
-        for line in source.components(separatedBy: "\n") {
-            var segment = AttributedString(line + "\n")
-            if mode == "Diff" {
-                if line.hasPrefix("+") { segment.foregroundColor = .green }
-                else if line.hasPrefix("-") { segment.foregroundColor = .red }
-                else if line.hasPrefix("@@") { segment.foregroundColor = .purple }
-                else { segment.foregroundColor = Color(nsColor: .textColor) }
-            }
-            result.append(segment)
+    @State private var previewPages: [String] = []
+    @State private var previewPage = 0
+    @State private var previewLoading = true
+    @State private var loadedPreviewID: String?
+    @State private var cachedFileID: String?
+    @State private var cachedPreviews: [String: [String]] = [:]
+    @State private var previewError: String?
+    private var previewID: String { (current?.id ?? "") + ":" + mode }
+    private func loadPreview() async {
+        guard !Task.isCancelled, let change = current else { return }
+        let requestID = previewID, requestedMode = mode
+        if cachedFileID != change.id { cachedPreviews = [:]; cachedFileID = change.id }
+        previewPage = 0; previewError = nil
+        if let pages = cachedPreviews[requestedMode] {
+            previewPages = pages; loadedPreviewID = requestID; previewLoading = false
+            return
         }
-        return result
+        previewLoading = true; previewPages = []
+        let work = Task.detached(priority: .userInitiated) { try FilePreview.pages(change, mode: requestedMode) }
+        do {
+            let pages = try await withTaskCancellationHandler(operation: { try await work.value }, onCancel: { work.cancel() })
+            try Task.checkCancellation()
+            guard previewID == requestID else { return }
+            cachedPreviews[requestedMode] = pages
+            previewPages = pages; loadedPreviewID = requestID; previewLoading = false
+        } catch {
+            guard !Task.isCancelled, previewID == requestID else { return }
+            previewError = error.localizedDescription; loadedPreviewID = requestID; previewLoading = false
+        }
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -74,15 +89,77 @@ struct PlanView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     if let current {
                         HStack { Text(current.before == nil ? "New file" : "File preview").font(.headline); Spacer(); Picker("Version", selection: $mode) { Text("Diff").tag("Diff"); Text("After").tag("After"); Text("Before").tag("Before") }.pickerStyle(.segmented).frame(width: 230) }
-                        ScrollView([.vertical, .horizontal]) { Text(editorText(current)).font(.system(size: 12, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .topLeading).padding(14) }.background(Color(nsColor: .textBackgroundColor))
+                        if previewLoading || loadedPreviewID != previewID {
+                            VStack(spacing: 10) { ProgressView(); Text("Preparing file preview…").foregroundStyle(.secondary) }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        } else if let previewError {
+                            ContentUnavailableView("Preview unavailable", systemImage: "exclamationmark.triangle", description: Text(previewError))
+                        } else {
+                            if previewPages.indices.contains(previewPage), !previewPages[previewPage].isEmpty {
+                                NativeFilePreview(text: previewPages[previewPage], isDiff: mode == "Diff")
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            } else {
+                                ContentUnavailableView("Empty file", systemImage: "doc", description: Text("This version contains no text."))
+                            }
+                            if previewPages.count > 1 {
+                                HStack {
+                                    Button("Previous") { previewPage -= 1 }.disabled(previewPage == 0)
+                                    Text("Page \(previewPage + 1) of \(previewPages.count)").monospacedDigit()
+                                    Button("Next") { previewPage += 1 }.disabled(previewPage + 1 >= previewPages.count)
+                                    Spacer()
+                                    Text("Full file will be applied.").foregroundStyle(.secondary)
+                                }.font(.caption)
+                            }
+                        }
                     }
                 }.padding(.leading, 12).frame(minWidth: 600)
             }
             if plan.rows.contains(where: \.unresolved) { Label("\(plan.rows.filter(\.unresolved).count) unresolved results will be included in the report.", systemImage: "exclamationmark.circle").font(.caption).foregroundStyle(.orange) }
             HStack { Text("Backups are saved in your project’s .lokanow folder.").font(.caption).foregroundStyle(.secondary); Spacer(); Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction); Button("Apply \(plan.changes.count) File Changes") { model.applyPlan() }.buttonStyle(.bordered).keyboardShortcut(.defaultAction) }
-        }.padding(24).frame(minWidth: 1050, idealWidth: 1180, minHeight: 680, idealHeight: 780).disabled(model.busy).interactiveDismissDisabled(model.busy)
+        }.padding(24).frame(minWidth: 1050, idealWidth: 1180, minHeight: 560, idealHeight: 720).disabled(model.busy).interactiveDismissDisabled(model.busy)
+        .task(id: previewID) { await loadPreview() }
     }
 }
+/// AppKit lays out selectable text inside a constrained scroll view, without SwiftUI Text sizing.
+private struct NativeFilePreview: NSViewRepresentable {
+    let text: String
+    let isDiff: Bool
+    final class Coordinator {
+        var text: String?
+        var isDiff = false
+    }
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeNSView(context: Context) -> NSScrollView {
+        let scroll = NSScrollView()
+        scroll.hasVerticalScroller = true
+        scroll.autohidesScrollers = true
+        scroll.borderType = .noBorder
+        let editor = NSTextView(frame: .zero)
+        editor.isEditable = false
+        editor.isSelectable = true
+        editor.isRichText = false
+        editor.isVerticallyResizable = true
+        editor.isHorizontallyResizable = false
+        editor.autoresizingMask = [.width]
+        editor.minSize = .zero
+        editor.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        editor.textContainer?.widthTracksTextView = true
+        editor.textContainer?.containerSize = NSSize(width: scroll.contentSize.width, height: CGFloat.greatestFiniteMagnitude)
+        editor.textContainerInset = NSSize(width: 12, height: 12)
+        editor.backgroundColor = .textBackgroundColor
+        editor.setAccessibilityLabel("File preview")
+        scroll.documentView = editor
+        return scroll
+    }
+    func updateNSView(_ scroll: NSScrollView, context: Context) {
+        guard let editor = scroll.documentView as? NSTextView,
+              context.coordinator.text != text || context.coordinator.isDiff != isDiff else { return }
+        context.coordinator.text = text; context.coordinator.isDiff = isDiff
+        editor.textStorage?.setAttributedString(FilePreview.attributedPage(text, isDiff: isDiff))
+        editor.scrollToBeginningOfDocument(nil)
+    }
+}
+
 struct ReportsView: View {
     @EnvironmentObject var model: StudioModel
     @State var reportID: UUID?

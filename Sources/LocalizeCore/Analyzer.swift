@@ -176,6 +176,9 @@ private final class LiteralVisitor: SyntaxVisitor {
                 status = .excluded; reason = "Hexadecimal color value."
             }
         }
+        if !dynamic, let exclusion = TechnicalString.reason(value) {
+            status = .excluded; reason = exclusion
+        }
         // Recognize this module's configured wrapper on subsequent analysis.
         // Existing lookup expressions retain their wrapper; only the key literal changes.
         if !dynamic, status != .excluded, let template = replacementTemplate,

@@ -244,6 +244,20 @@ import LocalizeCore
             self.notice = "Analyzed \(result.files) files. \(self.readyCount) safe conversions; \(self.unresolvedCount) items need review."
         }
     }
+    func editFindingKey(id: String, key: String) async -> String? {
+        guard !busy, let analysis else { return "Analyze the project before editing a key." }
+        let currentFindings = findings, options = saved.options
+        busy = true; activity = "Validating localization key…"
+        defer { busy = false }
+        do {
+            let updated = try await Self.work {
+                try FindingKeyEditor.edit(id: id, key: key, findings: currentFindings, snapshots: analysis.snapshots, options: options)
+            }
+            findings = updated; plan = nil
+            notice = "Key updated for matching occurrences in this module. Preview conversions to apply it to files."
+            return nil
+        } catch { return error.localizedDescription }
+    }
     func previewRegistration() {
         guard let root, let analysis else { return }
         do { plan = try Planner.registration(root: root, findings: findings, snapshots: analysis.snapshots, options: saved.options, modules: modules) }
