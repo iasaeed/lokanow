@@ -3,7 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 : "${DEVELOPMENT_TEAM:?Set DEVELOPMENT_TEAM to your Apple Developer team ID}"
 : "${NOTARY_PROFILE:?Set NOTARY_PROFILE to a Keychain notarytool profile}"
-version="${VERSION:-1.0.5}"
+version="${VERSION:-1.0.6}"
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'VERSION must be major.minor.patch.' >&2; exit 1; }
 xcodebuild -project Lokanow.xcodeproj -scheme Lokanow -configuration Release -archivePath build/Lokanow.xcarchive DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" MARKETING_VERSION="$version" ONLY_ACTIVE_ARCH=NO 'ARCHS=arm64 x86_64' archive
 xcodebuild -exportArchive -archivePath build/Lokanow.xcarchive -exportPath build/Release -exportOptionsPlist Resources/ExportOptions.plist

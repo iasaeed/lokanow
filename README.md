@@ -13,13 +13,13 @@ A native macOS app for localizing Swift projects with Lokalise.
 Requires macOS 14+ and Xcode 26+ already installed. Builds locally into `~/Applications/Lokanow.app`, without sudo.
 
 ```sh
-curl -fL https://raw.githubusercontent.com/iasaeed/lokanow/v1.0.5/scripts/install-source.sh -o lokanow-install.sh && sh lokanow-install.sh
+curl -fL https://raw.githubusercontent.com/iasaeed/lokanow/v1.0.6/scripts/install-source.sh -o lokanow-install.sh && sh lokanow-install.sh
 ```
 
 Or use wget:
 
 ```sh
-wget https://raw.githubusercontent.com/iasaeed/lokanow/v1.0.5/scripts/install-source.sh -O lokanow-install.sh && sh lokanow-install.sh
+wget https://raw.githubusercontent.com/iasaeed/lokanow/v1.0.6/scripts/install-source.sh -O lokanow-install.sh && sh lokanow-install.sh
 ```
 
 The first build can take several minutes; live output is shown. This is a locally built app. A notarized prebuilt download is not yet available. Company device policies may apply.
