@@ -211,20 +211,25 @@ import LocalizeCore
             error = "The source file is no longer readable. Reopen the project and analyze again."
             return
         }
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/xed")
-        process.arguments = ["--line", String(max(1, finding.line)), file.path]
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-        process.terminationHandler = { [weak self] task in
-            guard task.terminationStatus != 0 else { return }
-            Task { @MainActor in
-                self?.error = "Xcode could not open the source location. Ensure Xcode is installed and selected as the active developer tools."
-            }
+        guard let xcode = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.dt.Xcode") else {
+            error = "Xcode was not found by macOS. Install or launch Xcode once, then retry."
+            return
         }
-        do { try process.run() }
-        catch { self.error = "Could not launch Xcode navigation: " + error.localizedDescription }
+        do {
+            let configuration = NSWorkspace.OpenConfiguration()
+            configuration.activates = true
+            configuration.appleEvent = try XcodeSourceLocation.event(file: file, line: finding.line)
+            NSWorkspace.shared.open([file], withApplicationAt: xcode, configuration: configuration) { [weak self] _, failure in
+                guard let failure else { return }
+                Task { @MainActor in
+                    self?.error = "macOS could not open this source in Xcode: " + failure.localizedDescription
+                }
+            }
+        } catch {
+            self.error = "Could not prepare the source location for Xcode: " + error.localizedDescription
+        }
     }
+
     func analyze() {
         guard !selected.isEmpty else { error = "Select one or more modules first."; return }
         persist(); let selected = selected, all = modules, options = saved.options, exclusions = saved.excludedFindings

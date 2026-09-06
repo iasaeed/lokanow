@@ -170,7 +170,7 @@ struct ModulesView: View {
                 TableColumn("") { row in
                     let module = row.module
                     Toggle("Select \(module.name)", isOn: Binding(get: { model.saved.selectedModules.contains(module.id) }, set: { if $0 { model.saved.selectedModules.insert(module.id) } else { model.saved.selectedModules.remove(module.id) }; model.persist() })).labelsHidden().toggleStyle(.checkbox).disabled((model.saved.removedModules ?? []).contains(module.id))
-                }.width(24)
+                }.width(28)
                 TableColumn("Target", value: \.name) { row in
                     let module = row.module
                     Label(module.name, systemImage: module.kind == "Application" ? "app" : "shippingbox").lineLimit(1).truncationMode(.middle).help(module.name + "\n" + module.root.path)
@@ -194,14 +194,14 @@ struct ModulesView: View {
                         }
                     }
                 }.width(120)
-            }.background(TableSelectionHeader(
+            }.overlay(alignment: .topLeading, content: { TableSelectionHeader(
                 selectedCount: selectableIDs.intersection(model.saved.selectedModules).count,
                 totalCount: selectableIDs.count, enabled: !model.busy,
                 label: "Select all filtered modules") { select in
                     if select { model.saved.selectedModules.formUnion(selectableIDs) }
                     else { model.saved.selectedModules.subtract(selectableIDs) }
                     model.persist()
-                })
+                }.frame(width: 18, height: 22).padding(.leading, 5) })
                 .frame(minHeight: 240, maxHeight: .infinity)
                 .contextMenu { Button("Refresh Targets") { model.discover() } }
             if filtered.isEmpty { Text(query.isEmpty ? (model.modules.isEmpty ? "No targets discovered in this project." : "All modules are removed. Enable Show Removed to restore them.") : "No matching targets.").foregroundStyle(.secondary) }
@@ -267,7 +267,8 @@ struct ModuleSettingsView: View {
     @Environment(\.dismiss) var dismiss
     let module: Module
     @State var option: ModuleOptions
-    init(module: Module, initial: ModuleOptions) { self.module = module; _option = State(initialValue: initial) }
+    let onSave: (() -> Void)?
+    init(module: Module, initial: ModuleOptions, onSave: (() -> Void)? = nil) { self.module = module; self.onSave = onSave; _option = State(initialValue: initial) }
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(module.name).font(.system(size: 13, weight: .semibold)); Text("Localization routing").foregroundStyle(.secondary)
@@ -316,7 +317,7 @@ struct ModuleSettingsView: View {
                 TextField("Branch override", text: $option.remoteBranch)
                 Text("Leave the project empty to use the connection in Settings.").font(.caption).foregroundStyle(.secondary)
             }.formStyle(.columns).padding(8) }
-            HStack { Button("Cancel") { dismiss() }; Spacer(); Button("Save Configuration") { model.saved.options[module.id] = option; model.analysis = nil; model.findings = []; model.persist(); dismiss() }.buttonStyle(.bordered).disabled(!KeyGenerator.validPrefix(option.prefix) || ReplacementTemplate.validationError(option.replacementTemplate) != nil) }
+            HStack { Button("Cancel") { dismiss() }; Spacer(); Button(onSave == nil ? "Save Configuration" : "Save & Reanalyze") { model.saved.options[module.id] = option; model.analysis = nil; model.findings = []; model.persist(); dismiss(); onSave?() }.buttonStyle(.bordered).disabled(!KeyGenerator.validPrefix(option.prefix) || ReplacementTemplate.validationError(option.replacementTemplate) != nil) }
         }.padding(24).frame(width: 680, height: 640)
     }
 }
@@ -325,11 +326,21 @@ struct StringsView: View {
     @State var query = ""
     @State var status = "All actionable"
     @State var selection: String?
+    @State private var configuration: Module?
     @State private var sortOrder = [KeyPathComparator(\Finding.english)]
     private var selectableIDs: Set<String> { Set(filtered.filter { $0.status == .ready }.map(\.id)) }
     var filtered: [Finding] { model.findings.filter { finding in
         (query.isEmpty || finding.english.localizedCaseInsensitiveContains(query) || finding.key.localizedCaseInsensitiveContains(query) || finding.moduleName.localizedCaseInsensitiveContains(query)) && (status == "Everything" || (status == "All actionable" ? finding.status != .excluded && finding.status != .localized : finding.status.rawValue == status))
     } }
+    private func selectReady(_ selected: Bool) {
+        let ids = selectableIDs
+        for index in model.findings.indices where ids.contains(model.findings[index].id) { model.findings[index].selected = selected }
+    }
+    private var reviewReasons: [(reason: String, count: Int)] {
+        Dictionary(grouping: model.findings.filter { $0.status == .review }, by: \.reason)
+            .map { (reason: $0.key, count: $0.value.count) }
+            .sorted { $0.count == $1.count ? $0.reason < $1.reason : $0.count > $1.count }
+    }
     var current: Finding? { model.findings.first { $0.id == selection } }
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -337,8 +348,26 @@ struct StringsView: View {
             if model.analysis == nil { ContentUnavailableView("Analyze your modules first", systemImage: "text.magnifyingglass", description: Text("Choose one or more modules and run the Swift-aware analysis.")); Button("Analyze Selected Modules") { model.analyze() }.disabled(model.selected.isEmpty || model.busy) }
             else {
                 HStack(spacing: 14) { Metric(title: "Selected conversions", value: "\(model.readyCount)", icon: "checkmark.circle"); Metric(title: "Need review", value: "\(model.unresolvedCount)", icon: "eye"); Metric(title: "Already localized", value: "\(model.findings.filter { $0.status == .localized }.count)", icon: "globe") }
+                if !model.findings.contains(where: { $0.status == .ready }) && !reviewReasons.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("No strings are ready to select yet").font(.system(size: 12, weight: .semibold))
+                        ForEach(Array(reviewReasons.prefix(3)), id: \.reason) { issue in
+                            Text("\(issue.count) strings: \(issue.reason)").font(.caption).fixedSize(horizontal: false, vertical: true)
+                        }
+                        Menu("Configure & Reanalyze…") {
+                            ForEach(model.selected) { module in Button(module.name) { configuration = module } }
+                        }.fixedSize()
+                        Text("Select a row to see its exact reason. Dynamic or ambiguous strings remain protected from automatic replacement.").font(.caption).foregroundStyle(.secondary)
+                    }.padding(10).frame(maxWidth: .infinity, alignment: .leading).background(.orange.opacity(0.08))
+                }
                 if let warnings = model.analysis?.warnings, !warnings.isEmpty { DisclosureGroup("\(warnings.count) analysis warnings") { ScrollView { VStack(alignment: .leading) { ForEach(warnings, id: \.self) { Text($0).font(.caption).foregroundStyle(.orange) } } }.frame(maxHeight: 90) } }
                 HStack { TextField("Search English text, keys, or modules", text: $query).textFieldStyle(.roundedBorder); Picker("Show", selection: $status) { Text("All actionable").tag("All actionable"); Text("Everything").tag("Everything"); ForEach(FindingStatus.allCases, id: \.self) { Text($0.rawValue).tag($0.rawValue) } }.frame(width: 230) }
+                HStack {
+                    Button("Select All Ready") { selectReady(true) }.disabled(selectableIDs.isEmpty)
+                    Button("Deselect Ready") { selectReady(false) }.disabled(selectableIDs.isEmpty)
+                    Text("\(selectableIDs.count) selectable in this filter").font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                }
                 Table(filtered.sorted(using: sortOrder), selection: $selection, sortOrder: $sortOrder) {
                     TableColumn("") { finding in Toggle("Register \(finding.english)", isOn: Binding(get: { model.findings.first { $0.id == finding.id }?.selected ?? false }, set: { value in if let i = model.findings.firstIndex(where: { $0.id == finding.id }) { model.findings[i].selected = value } })).labelsHidden().disabled(finding.status != .ready) }.width(28)
                     TableColumn("English value", value: \.english) { Text($0.english).lineLimit(2) }.width(min: 160, ideal: 280)
@@ -354,17 +383,17 @@ struct StringsView: View {
                         model.openInXcode(finding)
                     }
                 }
-                .background(TableSelectionHeader(
+                .overlay(alignment: .topLeading, content: { TableSelectionHeader(
                     selectedCount: model.findings.filter { selectableIDs.contains($0.id) && $0.selected }.count,
                     totalCount: selectableIDs.count, enabled: !model.busy,
                     label: "Select all filtered safe conversions") { select in
                         let ids = selectableIDs
                         for index in model.findings.indices where ids.contains(model.findings[index].id) { model.findings[index].selected = select }
-                    })
+                    }.frame(width: 18, height: 22).padding(.leading, 5) })
                     .frame(minHeight: 160)
                 if let current {
                     VStack(alignment: .leading, spacing: 7) {
-                        HStack { Text("\(current.file.lastPathComponent):\(current.line) · \(current.context)").font(.subheadline.weight(.medium)); Spacer(); Button("Open in Xcode") { model.openInXcode(current) }; Button("Exclude") { model.exclude(current.id) } }
+                        HStack { Text("\(current.file.lastPathComponent):\(current.line) · \(current.context)").font(.subheadline.weight(.medium)); Spacer(); Button("Open in Xcode") { model.openInXcode(current) }; Button("Configure & Reanalyze…") { configuration = model.modules.first { $0.id == current.moduleID } }; Button("Exclude") { model.exclude(current.id) } }
                         Text(current.reason).font(.caption).foregroundStyle(.secondary)
                         if let replacement = current.replacement { Text(replacement).font(.system(.caption, design: .monospaced)).textSelection(.enabled).lineLimit(4) }
                     }.padding(14).frame(maxWidth: .infinity, alignment: .leading).background(Color(nsColor: .controlBackgroundColor))
@@ -372,6 +401,9 @@ struct StringsView: View {
                 HStack { Button("Reanalyze") { model.analyze() }; Button("Export analysis") { model.exportFindings() }; Spacer(); Text("\(filtered.count) occurrences").font(.caption).foregroundStyle(.secondary); Button("Preview \(model.readyCount) Conversions") { model.previewRegistration() }.buttonStyle(.bordered).disabled(model.readyCount == 0 || model.recoveryNeeded) }
             }
         }.padding(12).disabled(model.busy)
+        .sheet(item: $configuration) { module in
+            ModuleSettingsView(module: module, initial: model.saved.options[module.id] ?? ModuleOptions(module: module), onSave: { model.analyze() }).environmentObject(model)
+        }
     }
 }
 struct StatusBadge: View {
